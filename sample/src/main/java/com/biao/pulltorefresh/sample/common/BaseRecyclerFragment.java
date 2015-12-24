@@ -48,4 +48,8 @@ public class BaseRecyclerFragment extends Fragment {
     protected void setFooterView(View view) {
         mPtrLayout.setFooterView(view);
     }
+
+    public PtrLayout getPtrLayout() {
+        return mPtrLayout;
+    }
 }
