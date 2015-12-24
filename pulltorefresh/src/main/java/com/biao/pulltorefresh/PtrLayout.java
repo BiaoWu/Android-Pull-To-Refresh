@@ -2,14 +2,17 @@ package com.biao.pulltorefresh;
 
 import android.annotation.TargetApi;
 import android.content.Context;
-import android.graphics.PointF;
 import android.os.Build;
+import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
-import android.view.VelocityTracker;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.Scroller;
+
+import com.biao.pulltorefresh.utils.L;
 
 
 /**
@@ -17,16 +20,34 @@ import android.widget.Scroller;
  */
 public class PtrLayout extends ViewGroup {
     private static final String TAG = PtrLayout.class.getSimpleName();
-    private static final int DEFAULT_DRAG_MAX_DISTANCE = 100;//dp
+    private static final byte DIRECTION_DOWN = -1;
+    private static final byte DIRECTION_UP = 1;
+    private static final int DEFAULT_PULL_MAX_DISTANCE = 50;//dp
+
+    private static final float DRAG_RATE = .5f;
+
+    private float mRatio = 1.3f;
 
     private View mHeaderView;
     private View mContentView;
     private View mFooterView;
 
-    private int maxBottom;
+    private PtrHandler mHeaderPtrHandler;
+    private PtrHandler mFooterPtrHandler;
 
-    private PointF pre = new PointF();
-    private PointF des = new PointF();
+    private int mTouchSlop;
+    private int mPullMaxDistance;//pull 的最大距离，影响弹簧效果
+    private boolean mIsIntercept;
+
+    private float mDownY;
+    private float mLastY;//最后一次移动的点Y
+    private float mDistanceY;//没次移动的距离Y
+    private float mPullPercent;
+
+    private boolean mIsRefreshing;
+    private boolean mInterceptDirection;
+
+    private int maxBottom;
 
     private int mContentTop;
     private int mContentBottom;
@@ -35,7 +56,6 @@ public class PtrLayout extends ViewGroup {
 
 
     private Scroller mScroller;
-    private VelocityTracker mVelocityTracker;
 
     public PtrLayout(Context context) {
         super(context);
@@ -59,6 +79,10 @@ public class PtrLayout extends ViewGroup {
         super.onFinishInflate();
         Context context = getContext();
 
+        mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        mPullMaxDistance = Math.round(
+                DEFAULT_PULL_MAX_DISTANCE * context.getResources().getDisplayMetrics().density * mRatio);
+
         int childCount = getChildCount();
         if (childCount == 1) {
             mContentView = getChildAt(0);
@@ -67,7 +91,6 @@ public class PtrLayout extends ViewGroup {
 
 
         mScroller = new Scroller(context);
-        mVelocityTracker = VelocityTracker.obtain();
     }
 
     @Override
@@ -145,100 +168,136 @@ public class PtrLayout extends ViewGroup {
         if (view != null && mHeaderView != view) {
             mHeaderView = view;
             addView(view);
-            mHeaderView.bringToFront();
+            if (view instanceof PtrHandler) {
+                mHeaderPtrHandler = (PtrHandler) view;
+            }
+            reset();
         }
+    }
+
+    private void reset() {
+        mContentTop = 0;
+        mHeaderOffsetTop = 0;
+        mFooterOffsetTop = 0;
     }
 
     public void setFooterView(View view) {
         if (view != null && mFooterView != view) {
             mFooterView = view;
             addView(view);
-            mFooterView.bringToFront();
+            if (view instanceof PtrHandler) {
+                mFooterPtrHandler = (PtrHandler) view;
+            }
+            reset();
         }
     }
 
-    @TargetApi(14)
+    public boolean isRefreshing() {
+        return mIsRefreshing;
+    }
+
     private boolean canScrollVerticallyDown() {
-        return mContentView.canScrollVertically(-1);
+        return canScrollVertically(DIRECTION_DOWN);
     }
 
-    @TargetApi(14)
     private boolean canScrollVerticallyUp() {
-        return mContentView.canScrollVertically(1);
+        return canScrollVertically(DIRECTION_UP);
     }
 
-    private boolean isMoveDown() {
-        return mVelocityTracker.getYVelocity() > 0;
+    public boolean canScrollVertically(int direction) {
+        if (Build.VERSION.SDK_INT < 14) {
+            if (mContentView instanceof AbsListView) {//list view etc.
+                final AbsListView absListView = (AbsListView) mContentView;
+                int childCount = absListView.getChildCount();
+                if (childCount > 0) {
+                    switch (direction) {
+                        case DIRECTION_DOWN:
+                            return (absListView.getFirstVisiblePosition() > 0 || absListView.getChildAt(0)
+                                    .getTop() < absListView.getPaddingTop());
+                        case DIRECTION_UP:
+                            return (absListView.getLastVisiblePosition() < childCount || absListView.getChildAt(childCount - 1)
+                                    .getBottom() > absListView.getBottom());
+                        default:
+                            return false;
+                    }
+                } else {
+                    return false;
+                }
+            } else {//TODO RecyclerView
+                return mContentView.getScrollY() > 0;
+            }
+        } else {
+            return ViewCompat.canScrollVertically(mContentView, direction);
+        }
+    }
+
+    private boolean skipIntercept() {
+        return isRefreshing();
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        boolean intercept = false;
-
+        if (skipIntercept()) {
+            return mIsIntercept = false;
+        }
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                pre.x = event.getRawX();
-                pre.y = event.getRawY();
+                mIsIntercept = false;
+                mLastY = mDownY = event.getRawY();
                 break;
             case MotionEvent.ACTION_MOVE:
-                des.x = event.getRawX() - pre.x;
-                des.y = event.getRawY() - pre.y;
-
-
-                mVelocityTracker.addMovement(event);
-                mVelocityTracker.computeCurrentVelocity(1000);
-
-                if (isMoveDown()) {
-                    intercept = !canScrollVerticallyDown();
-                } else {
-                    intercept = !canScrollVerticallyUp();
+                mDistanceY = event.getRawY() - mLastY;
+                if (Math.abs(mDistanceY) < mTouchSlop) {
+                    return mIsIntercept = false;
                 }
 
-                pre.x = event.getRawX();
-                pre.y = event.getRawY();
+                //only mIsIntercept=true this direction can use
+                mInterceptDirection = mDistanceY > 0;
+                if (mInterceptDirection) {
+                    mIsIntercept = !canScrollVerticallyDown();
+                } else {
+                    mIsIntercept = !canScrollVerticallyUp();
+                }
+
+                mLastY = event.getRawY();
                 break;
             case MotionEvent.ACTION_UP:
                 break;
         }
-
-        return intercept;
+        return mIsIntercept;
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (!mIsIntercept) {
+            return super.onTouchEvent(event);
+        }
+
         switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-
-                pre.x = event.getRawX();
-                pre.y = event.getRawY();
-//                if (!mScroller.isFinished()) {
-//                    mScroller.abortAnimation();
-//                }
-                break;
             case MotionEvent.ACTION_MOVE:
-                des.x = event.getRawX() - pre.x;
-                des.y = event.getRawY() - pre.y;
+                //TODO 增加弹簧效果
+                mDistanceY = event.getRawY() - mLastY;
 
-                if (isMoveDown()) {
-                    moveDown((int) des.y);
+                mDistanceY *= DRAG_RATE;
+
+                if (mInterceptDirection) {
+                    moveDown((int) mDistanceY);
                 } else {
-                    moveUp((int) des.y);
+                    moveUp((int) mDistanceY);
                 }
-
-                pre.x = event.getRawX();
-                pre.y = event.getRawY();
+                mLastY = event.getRawY();
                 break;
             case MotionEvent.ACTION_UP:
                 int startY;
-                if (isMoveDown()) {
+                if (mInterceptDirection) {
                     startY = mContentTop;
                 } else {
                     startY = mContentBottom;
                 }
-                goBack(startY);
+//                L.e("action up startY=" + startY);
+                scroll2RefreshPosition(startY);
                 break;
         }
-
         return true;
     }
 
@@ -259,12 +318,12 @@ public class PtrLayout extends ViewGroup {
         }
 
         invalidate();
-    }
 
-    private void goBack(int startY) {
-        scrollY = 0;
-        mScroller.startScroll(0, 0, 0, startY, 1000);
-        invalidate();
+        if (mFooterPtrHandler != null) {
+            float percent = Math.abs(mFooterOffsetTop * 1f) / mPullMaxDistance;
+//                L.e("percent = " + percent);
+            mFooterPtrHandler.onPercent(percent);
+        }
     }
 
     private void moveDown(int y) {
@@ -284,15 +343,74 @@ public class PtrLayout extends ViewGroup {
         }
 
         invalidate();
+
+        if (mHeaderPtrHandler != null) {
+            float percent = mHeaderOffsetTop * 1f / mPullMaxDistance;
+//                L.e("percent = " + percent);
+            mHeaderPtrHandler.onPercent(percent);
+        }
     }
 
+
+    private void scroll2RefreshPosition(int startY) {
+        if (Math.abs(startY) < mPullMaxDistance) {
+            goBack(startY);
+        } else {
+            final int timeForRelease = 250;
+            int endY = startY > 0 ? startY - mPullMaxDistance : mPullMaxDistance - Math.abs(startY);
+            smootchScroll(endY, timeForRelease);
+
+            final int release = startY > 0 ? mPullMaxDistance : -mPullMaxDistance;
+
+            if (mInterceptDirection) {
+                if (mHeaderPtrHandler != null) {
+                    mHeaderPtrHandler.onRefreshBegin();
+                }
+            } else {
+                if (mFooterPtrHandler != null) {
+                    mFooterPtrHandler.onRefreshBegin();
+                }
+            }
+
+            postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    goBack(release);
+                    if (mInterceptDirection) {
+                        if (mHeaderPtrHandler != null) {
+                            mHeaderPtrHandler.onRefreshEnd();
+                        }
+                    } else {
+                        if (mFooterPtrHandler != null) {
+                            mFooterPtrHandler.onRefreshEnd();
+                        }
+                    }
+                }
+            }, timeForRelease + 1000);
+        }
+    }
+
+    private void smootchScroll(int startY, int duration) {
+        scrollY = 0;
+        mScroller.startScroll(0, 0, 0, startY, duration);
+        invalidate();
+    }
+
+
     private int scrollY;
+
+    private void goBack(int startY) {
+        L.e("goBack from" + startY);
+        scrollY = 0;
+        mScroller.startScroll(0, 0, 0, startY, 500);
+        invalidate();
+    }
 
     @Override
     public void computeScroll() {
         if (mScroller.computeScrollOffset()) {
             int currY = mScroller.getCurrY();
-            if (isMoveDown()) {
+            if (mInterceptDirection) {
                 moveDown(scrollY - currY);
             } else {
                 moveUp(scrollY - currY);
@@ -301,11 +419,13 @@ public class PtrLayout extends ViewGroup {
         }
     }
 
-    @Override
-    protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
-
-        mVelocityTracker.recycle();
+    private void setTargetOffsetTopAndBottom(int offset, boolean requiresUpdate) {
+//        mCircleView.bringToFront();
+//        mCircleView.offsetTopAndBottom(offset);
+//        mCurrentTargetOffsetTop = mCircleView.getTop();
+//        if (requiresUpdate && android.os.Build.VERSION.SDK_INT < 11) {
+//            invalidate();
+//        }
     }
 
     @Override
