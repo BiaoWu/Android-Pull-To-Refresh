@@ -3,6 +3,7 @@ package com.biao.pulltorefresh.sample.fragment;
 import android.graphics.Color;
 import android.os.Bundle;
 
+import com.biao.pulltorefresh.OnRefreshListener;
 import com.biao.pulltorefresh.PtrLayout;
 import com.biao.pulltorefresh.header.MaterialHeader;
 import com.biao.pulltorefresh.sample.common.BaseRecyclerFragment;
@@ -30,25 +31,28 @@ public class MainFragment extends BaseRecyclerFragment {
 
         final PtrLayout ptrLayout = getPtrLayout();
 
-        ptrLayout.setOnRefreshListener(new PtrLayout.OnRefreshListener() {
+        ptrLayout.setOnPullDownRefreshListener(new OnRefreshListener() {
             @Override
-            public void onPullDownRefresh() {
+            public void onRefresh() {
                 header.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        CommonLog.e("");
-                        ptrLayout.onDownRefreshComplete();
+                        CommonLog.e("OnPullDownRefresh");
+                        ptrLayout.onRefreshComplete();
                     }
                 }, 3000);
             }
+        });
 
+
+        ptrLayout.setOnPullUpRefreshListener(new OnRefreshListener() {
             @Override
-            public void onPullUpRefresh() {
+            public void onRefresh() {
                 header.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        CommonLog.e("");
-                        ptrLayout.onUpRefreshComplete();
+                        CommonLog.e("OnPullUpRefresh");
+                        ptrLayout.onRefreshComplete();
                     }
                 }, 3000);
             }

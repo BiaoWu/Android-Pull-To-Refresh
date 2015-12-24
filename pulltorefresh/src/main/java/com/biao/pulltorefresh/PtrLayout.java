@@ -25,23 +25,15 @@ public class PtrLayout extends ViewGroup {
     private static final int DEFAULT_PULL_MAX_DISTANCE = 80;//dp
     private static final float DRAG_RATE = .5f;
 
-    private static final int FLAG_NONE = 0;
-    private static final int FLAG_IS_REFRESH_DOWN = 1 << 1;
-    private static final int FLAG_IS_REFRESH_UP = 1 << 2;
-
-
     //config
     private int mTouchSlop;
     private int mTotalDragDistance;
-    private boolean mOpenDownRefresh;
-    private boolean mOpenUpRefresh;
 
     //touch event
     private float mLastDownY;
     private float mDistanceY;
+    private byte mInterceptDirection;//TODO 优化：拦截的方向，正在刷新的方向现在也是用的这个
     private boolean mIsBeingDragged;
-    private boolean mNoBodyNeedEvent;
-    private byte mInterceptDirection;
 
     //scroller
     private PtrScroller mPtrScroller;
@@ -51,20 +43,8 @@ public class PtrLayout extends ViewGroup {
     private PtrViewHolder mFooterView;
     private PtrViewHolder mContentView;
 
-    private PtrHandler mHeaderPtrHandler;
-    private PtrHandler mFooterPtrHandler;
-
     //state
-    private int mFlag;
-
-
-    private OnRefreshListener mOnRefreshListener;
-
-    public interface OnRefreshListener {
-        void onPullDownRefresh();
-
-        void onPullUpRefresh();
-    }
+    private boolean mIsRefreshing;
 
     public PtrLayout(Context context) {
         super(context);
@@ -88,8 +68,11 @@ public class PtrLayout extends ViewGroup {
         super.onFinishInflate();
         Context context = getContext();
         mHeaderView = new PtrViewHolder();
-        mFooterView = new PtrViewHolder();
         mContentView = new PtrViewHolder();
+        mFooterView = new PtrViewHolder();
+//        mHeaderView = new PtrViewHolder(PtrViewHolder.FLAG_MOVE);
+//        mContentView = new PtrViewHolder(PtrViewHolder.FLAG_MOVE);
+//        mFooterView = new PtrViewHolder(PtrViewHolder.FLAG_MOVE);
 
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         mTotalDragDistance = Math.round(
@@ -107,18 +90,20 @@ public class PtrLayout extends ViewGroup {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+
         if (mHeaderView.isNotEmpty()) {
             measureChildWithMargins(mHeaderView.view, widthMeasureSpec, 0, heightMeasureSpec, 0);
         }
 
         if (mContentView.isNotEmpty()) {
             final MarginLayoutParams lp = (MarginLayoutParams) mContentView.view.getLayoutParams();
-
             final int childWidthMeasureSpec = getChildMeasureSpec(widthMeasureSpec,
-                    getPaddingLeft() + getPaddingRight() + lp.leftMargin + lp.rightMargin, lp.width);
+                    getPaddingLeft() + getPaddingRight() + lp.leftMargin + lp.rightMargin,
+                    widthSize);
             final int childHeightMeasureSpec = getChildMeasureSpec(heightMeasureSpec,
-                    getPaddingTop() + getPaddingBottom() + lp.topMargin, lp.height);
-
+                    getPaddingTop() + getPaddingBottom() + lp.topMargin, heightSize);
             mContentView.view.measure(childWidthMeasureSpec, childHeightMeasureSpec);
         }
 
@@ -163,29 +148,56 @@ public class PtrLayout extends ViewGroup {
     }
 
     public void setHeaderView(View view) {
-        if (view != null && !mHeaderView.isNotEmpty()) {
-            mOpenDownRefresh = true;
-            mHeaderView.view = view;
-            addView(view);
-            if (view instanceof PtrHandler) {
-                mHeaderPtrHandler = (PtrHandler) view;
-            }
-        }
+        setHeaderView(view, PtrViewHolder.FLAG_MOVE);
+    }
+
+    public void setHeaderView(int flag) {
+        setHeaderView(null, flag);
+    }
+
+    public void setHeaderView(View view, int flag) {
+        setView(mHeaderView, view, flag);
     }
 
     public void setFooterView(View view) {
-        if (view != null && !mFooterView.isNotEmpty()) {
-            mOpenUpRefresh = true;
-            mFooterView.view = view;
+        setFooterView(view, PtrViewHolder.FLAG_MOVE);
+    }
+
+    public void setFooterView(int flag) {
+        setFooterView(null, flag);
+    }
+
+    public void setFooterView(View view, int flag) {
+        setView(mFooterView, view, flag);
+    }
+
+    private void setView(PtrViewHolder ptrViewHolder, View view, int flag) {
+        if (ptrViewHolder == null) {
+            L.e("ptrViewHolder can not be null!");
+            return;
+        }
+        View originalView = ptrViewHolder.getView();
+        if (view == null) {
+            if (originalView != null) {
+                ptrViewHolder.setFlag(flag);
+            } else {
+                L.e("view is null and original view is null!!!");
+            }
+        } else {
+            if (originalView != null) {
+                removeView(originalView);
+                //TODO stop ptr handler
+            }
             addView(view);
             if (view instanceof PtrHandler) {
-                mFooterPtrHandler = (PtrHandler) view;
+                ptrViewHolder.setPtrHandler((PtrHandler) view);
             }
+            ptrViewHolder.setView(view);
         }
     }
 
     public boolean isRefreshing() {
-        return (mFlag & FLAG_IS_REFRESH_DOWN) != 0 || (mFlag & FLAG_IS_REFRESH_UP) != 0;
+        return mIsRefreshing;
     }
 
     @Override
@@ -201,33 +213,34 @@ public class PtrLayout extends ViewGroup {
             return false;
         }
 
-        if (isNeedIntercept()) {
-            if (DEBUG_INTERCEPT)
-                L.e(TAG, "Animating!");
-            return mIsBeingDragged = true;
-        }
-
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                mNoBodyNeedEvent = true;
                 mIsBeingDragged = false;
                 mLastDownY = event.getRawY();
                 break;
             case MotionEvent.ACTION_MOVE:
-                mNoBodyNeedEvent = false;
-                //TODO 优化
-                mDistanceY = event.getRawY() - mLastDownY;
-                if (Math.abs(mDistanceY) < mTouchSlop) {
+                if (mHeaderView.canScrollAndIsNotOriginalLocation()
+                        || mFooterView.canScrollAndIsNotOriginalLocation()
+                        || mContentView.canScrollAndIsNotOriginalLocation()) {
                     if (DEBUG_INTERCEPT)
-                        L.e(TAG, "Distance so small!");
-                    return mIsBeingDragged = false;
+                        L.e(TAG, "ex onInterceptTouchEvent!");
+                    mIsBeingDragged = true;
                 }
 
-                mInterceptDirection = mDistanceY > 0 ? ViewScrollChecker.DIRECTION_DOWN : ViewScrollChecker.DIRECTION_UP;
-                mIsBeingDragged = !ViewScrollChecker.canViewScrollVertically(mContentView.view, mInterceptDirection);
-                mLastDownY = event.getRawY();
+                if (!mIsBeingDragged) {
+                    mDistanceY = event.getRawY() - mLastDownY;
+                    if (Math.abs(mDistanceY) > mTouchSlop) {
+                        mInterceptDirection = mDistanceY > 0
+                                ? ViewScrollChecker.DIRECTION_DOWN
+                                : ViewScrollChecker.DIRECTION_UP;
+                        mIsBeingDragged = !ViewScrollChecker.canViewScrollVertically(
+                                mContentView.view, mInterceptDirection);
+                        mLastDownY = event.getRawY();
+                    }
+                }
                 break;
             case MotionEvent.ACTION_UP:
+                mIsBeingDragged = false;
                 break;
         }
         if (DEBUG_INTERCEPT)
@@ -235,13 +248,9 @@ public class PtrLayout extends ViewGroup {
         return mIsBeingDragged;
     }
 
-    private boolean isNeedIntercept() {
-        return mPtrScroller.isAnimating();
-    }
-
     @Override
     public void setOnTouchListener(OnTouchListener l) {
-        //do nothing for onTouchEvent
+        //do nothing ! only onTouchEvent!
     }
 
 
@@ -253,19 +262,12 @@ public class PtrLayout extends ViewGroup {
             return false;
         }
 
-        if (mPtrScroller.isAnimating()) {
-            return true;
-        }
-
-        if (mNoBodyNeedEvent) {
-//            onTouchEventNoIntercept(event);
-//            return true;
-        }
-
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 mLastDownY = event.getRawY();
                 mPtrScroller.abortScroll();
+                break;
+            case MotionEvent.ACTION_POINTER_DOWN:
                 break;
             case MotionEvent.ACTION_MOVE:
                 mDistanceY = event.getRawY() - mLastDownY;
@@ -273,19 +275,32 @@ public class PtrLayout extends ViewGroup {
 
                 if (DEBUG_TOUCH)
                     L.e(TAG, "mDistanceY=" + mDistanceY
-                            + ",mNoBodyNeedEvent=" + mNoBodyNeedEvent
                             + ",mInterceptDirection=" + mInterceptDirection);
 
                 switch (mInterceptDirection) {
                     case ViewScrollChecker.DIRECTION_DOWN:
-                        performDown((int) mDistanceY);
+                        if ((mHeaderView.canScroll()
+                                && mHeaderView.offsetY + mDistanceY < 0)
+                                || (mContentView.canScroll()
+                                && mContentView.offsetY + mDistanceY < 0)) {
+                        } else {
+                            performDown((int) mDistanceY);
+                        }
                         break;
                     case ViewScrollChecker.DIRECTION_UP:
-                        performUp((int) mDistanceY);
+                        if ((mFooterView.isNotEmpty()
+                                && mFooterView.offsetY + mDistanceY > 0)
+                                || (mContentView.canScroll()
+                                && mContentView.offsetY + mDistanceY > 0)) {
+                        } else {
+                            performUp((int) mDistanceY);
+                        }
+
                         break;
                 }
                 mLastDownY = event.getRawY();
                 break;
+            case MotionEvent.ACTION_CANCEL:
             case MotionEvent.ACTION_UP:
                 mIsBeingDragged = false;
                 int scrollY = 0;
@@ -293,7 +308,7 @@ public class PtrLayout extends ViewGroup {
                     L.e(TAG, "mInterceptDirection = " + mInterceptDirection);
                 switch (mInterceptDirection) {
                     case ViewScrollChecker.DIRECTION_DOWN:
-                        if (!mOpenDownRefresh) {
+                        if (!mHeaderView.isNotEmpty()) {
                             mPtrScroller.smoothScroll(mContentView.offsetY);
                             if (DEBUG_TOUCH)
                                 L.e(TAG, "Down Refresh not open");
@@ -302,7 +317,7 @@ public class PtrLayout extends ViewGroup {
                         scrollY = mHeaderView.offsetY;
                         break;
                     case ViewScrollChecker.DIRECTION_UP:
-                        if (!mOpenUpRefresh) {
+                        if (!mFooterView.isNotEmpty()) {
                             mPtrScroller.smoothScroll(mContentView.offsetY);
                             if (DEBUG_TOUCH)
                                 L.e(TAG, "Up Refresh not open");
@@ -312,154 +327,114 @@ public class PtrLayout extends ViewGroup {
                         break;
                 }
 
-                if (!isRefreshing()) {
+                if (!mIsRefreshing) {
                     if (Math.abs(scrollY) < mTotalDragDistance) {
                         mPtrScroller.smoothScroll(scrollY);
                     } else {
-                        performRefresh(scrollY);
+                        performRefresh();
                     }
                 } else {
-                    if (Math.abs(scrollY) > mTotalDragDistance) {
-                        mPtrScroller.smoothScroll(scrollY > 0 ? scrollY - mTotalDragDistance
-                                : scrollY + mTotalDragDistance);
-                    } else {
-                        mPtrScroller.smoothScroll(scrollY);
-                    }
+                    //TODO 判断是否是当前方向，当前方向需要归位到 刷新位置
+                    mPtrScroller.smoothScroll(scrollY);
                 }
-                break;
         }
         return true;
     }
 
-    //TODO
-    private void onTouchEventNoIntercept(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                //fix no body need event
-                if (mNoBodyNeedEvent && !isRefreshing()) {
-                    switch (mInterceptDirection) {
-                        case ViewScrollChecker.DIRECTION_DOWN:
-                            if (mHeaderView.offsetY == 0 && mContentView.offsetY == 0) {
-                                mInterceptDirection = 0;
-                            }
-                            break;
-                        case ViewScrollChecker.DIRECTION_UP:
-                            if (mFooterView.offsetY == 0 && mContentView.offsetY == 0) {
-                                mInterceptDirection = 0;
-                            }
-                            break;
-                    }
-                }
-                break;
-            case MotionEvent.ACTION_MOVE:
-                //fix no body need event
-                if (mNoBodyNeedEvent && mInterceptDirection == 0 && mDistanceY != 0) {
-                    mInterceptDirection = mDistanceY > 0 ? ViewScrollChecker.DIRECTION_DOWN
-                            : ViewScrollChecker.DIRECTION_UP;
-                }
-                break;
-            case MotionEvent.ACTION_UP:
-                break;
-        }
-    }
-
-    private void performMove(int distanceY) {
-        mContentView.offsetTopAndBottom(distanceY);
-
-        invalidate();
-    }
-
     private void performDown(int distanceY) {
-        if (mHeaderView.isNotEmpty() && mHeaderView.offsetY + distanceY < 0) {
-            return;
-        }
-
         mContentView.offsetTopAndBottom(distanceY);
         mHeaderView.offsetTopAndBottom(distanceY);
 
         invalidate();
 
-        if (!isRefreshing() && mHeaderPtrHandler != null) {
+        if (!mIsRefreshing && mHeaderView.ptrHandler != null) {
             float percent = mHeaderView.offsetY * 1f / mTotalDragDistance;
-            mHeaderPtrHandler.onPercent(percent);
+            mHeaderView.ptrHandler.onPercent(Math.min(1f, percent));
         }
     }
 
     private void performUp(int distanceY) {
-        if (mFooterView.isNotEmpty() && mFooterView.offsetY + distanceY > 0) {
-            return;
-        }
-
         mContentView.offsetTopAndBottom(distanceY);
         mFooterView.offsetTopAndBottom(distanceY);
 
         invalidate();
 
-        if (!isRefreshing() && mFooterPtrHandler != null) {
+        if (!mIsRefreshing && mFooterView.ptrHandler != null) {
             float percent = Math.abs(mFooterView.offsetY * 1f) / mTotalDragDistance;
-            mFooterPtrHandler.onPercent(percent);
+            mFooterView.ptrHandler.onPercent(percent);
         }
     }
 
-
-    private void performRefresh(int startY) {
+    private void performRefresh() {
+        PtrViewHolder ptrViewHolder = null;
         switch (mInterceptDirection) {
             case ViewScrollChecker.DIRECTION_DOWN:
-                mFlag |= FLAG_IS_REFRESH_DOWN;
-                if (mHeaderPtrHandler != null) {
-                    mHeaderPtrHandler.onRefreshBegin();
-                }
-                if (mOnRefreshListener != null) {
-                    mOnRefreshListener.onPullDownRefresh();
-                }
+                ptrViewHolder = mHeaderView;
                 break;
             case ViewScrollChecker.DIRECTION_UP:
-                mFlag |= FLAG_IS_REFRESH_UP;
-                if (mFooterPtrHandler != null) {
-                    mFooterPtrHandler.onRefreshBegin();
-                }
-                if (mOnRefreshListener != null) {
-                    mOnRefreshListener.onPullUpRefresh();
-                }
+                ptrViewHolder = mFooterView;
                 break;
         }
+        performRefresh(ptrViewHolder);
+    }
 
-        int endY = startY > 0 ? startY - mTotalDragDistance : mTotalDragDistance - Math.abs(startY);
+    private void performRefresh(PtrViewHolder ptrViewHolder) {
+        mIsRefreshing = true;
+        int offsetY = 0;
+        if (ptrViewHolder != null) {
+            offsetY = ptrViewHolder.offsetY;
+
+            if (ptrViewHolder.ptrHandler != null) {
+                ptrViewHolder.ptrHandler.onRefreshBegin();
+            }
+        }
+
+        int endY = offsetY > 0 ? offsetY - mTotalDragDistance
+                : mTotalDragDistance - Math.abs(offsetY);
         mPtrScroller.smoothScroll(endY);
     }
 
-
-    public void onDownRefreshComplete() {
-        performRefreshComplete(mHeaderView.offsetY);
-    }
-
-    public void onUpRefreshComplete() {
-        performRefreshComplete(mFooterView.offsetY);
-    }
-
-    private void performRefreshComplete(int startY) {
+    public void onRefreshComplete() {
+        PtrViewHolder ptrViewHolder = null;
         switch (mInterceptDirection) {
             case ViewScrollChecker.DIRECTION_DOWN:
-                mFlag = mFlag & ~FLAG_IS_REFRESH_DOWN;
-                if (mHeaderPtrHandler != null) {
-                    mHeaderPtrHandler.onRefreshEnd();
-                }
+                ptrViewHolder = mHeaderView;
                 break;
             case ViewScrollChecker.DIRECTION_UP:
-                mFlag = mFlag & ~FLAG_IS_REFRESH_UP;
-                if (mFooterPtrHandler != null) {
-                    mFooterPtrHandler.onRefreshEnd();
-                }
+                ptrViewHolder = mFooterView;
                 break;
+        }
+        performRefreshComplete(ptrViewHolder);
+    }
+
+    private void performRefreshComplete(PtrViewHolder ptrViewHolder) {
+        mIsRefreshing = false;
+
+        int endY = 0;
+        if (ptrViewHolder != null) {
+            endY = ptrViewHolder.offsetY;
+            if (ptrViewHolder.ptrHandler != null) {
+                ptrViewHolder.ptrHandler.onRefreshEnd();
+            }
         }
 
         if (!mIsBeingDragged) {
-            mPtrScroller.smoothScroll(startY);
+            mPtrScroller.smoothScroll(endY);
         }
     }
 
-    public void setOnRefreshListener(OnRefreshListener onRefreshListener) {
-        mOnRefreshListener = onRefreshListener;
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        mPtrScroller.abortScroll();
+    }
+
+    public void setOnPullDownRefreshListener(OnRefreshListener onRefreshListener) {
+        mHeaderView.setOnRefreshListener(onRefreshListener);
+    }
+
+    public void setOnPullUpRefreshListener(OnRefreshListener onRefreshListener) {
+        mFooterView.setOnRefreshListener(onRefreshListener);
     }
 
     private class PtrScroller implements Runnable {
@@ -490,14 +465,12 @@ public class PtrLayout extends ViewGroup {
 
 
         void finish() {
-            removeCallbacks(this);
             mIsAnimating = false;
         }
 
         void abortScroll() {
-            removeCallbacks(this);
-//            mScroller.forceFinished(true);
             mScroller.abortAnimation();
+            removeCallbacks(this);
             mIsAnimating = false;
         }
 
@@ -511,9 +484,6 @@ public class PtrLayout extends ViewGroup {
                         break;
                     case ViewScrollChecker.DIRECTION_UP:
                         performUp(mLastScrollY - currY);
-                        break;
-                    default:
-                        performMove(mLastScrollY - currY);
                         break;
                 }
                 mLastScrollY = currY;

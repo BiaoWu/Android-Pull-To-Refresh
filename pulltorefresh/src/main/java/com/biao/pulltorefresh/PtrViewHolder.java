@@ -16,6 +16,7 @@ class PtrViewHolder {
     int flag;
     int offsetY;
     PtrHandler ptrHandler;
+    OnRefreshListener mOnRefreshListener;
 
     PtrViewHolder() {
         flag = FLAG_MOVE;
@@ -85,5 +86,9 @@ class PtrViewHolder {
 
     void setPtrHandler(PtrHandler ptrHandler) {
         this.ptrHandler = ptrHandler;
+    }
+
+    void setOnRefreshListener(OnRefreshListener onRefreshListener) {
+        mOnRefreshListener = onRefreshListener;
     }
 }
