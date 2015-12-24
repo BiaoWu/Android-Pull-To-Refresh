@@ -26,9 +26,9 @@ public class PtrLayout extends ViewGroup {
     private static final float DRAG_RATE = .5f;
 
     private static final int FLAG_NONE = 0;
-    private static final int FLAG_IS_INTERCEPT = 1;
     private static final int FLAG_IS_REFRESH_DOWN = 1 << 1;
     private static final int FLAG_IS_REFRESH_UP = 1 << 2;
+
 
     //config
     private int mTouchSlop;
@@ -39,9 +39,9 @@ public class PtrLayout extends ViewGroup {
     //touch event
     private float mLastDownY;
     private float mDistanceY;
-    private byte mInterceptDirection;
     private boolean mIsBeingDragged;
     private boolean mNoBodyNeedEvent;
+    private byte mInterceptDirection;
 
     //scroller
     private PtrScroller mPtrScroller;
@@ -53,8 +53,8 @@ public class PtrLayout extends ViewGroup {
 
     private PtrHandler mHeaderPtrHandler;
     private PtrHandler mFooterPtrHandler;
+
     //state
-    private boolean mIsRefreshing;
     private int mFlag;
 
 
@@ -185,7 +185,7 @@ public class PtrLayout extends ViewGroup {
     }
 
     public boolean isRefreshing() {
-        return mIsRefreshing;
+        return (mFlag & FLAG_IS_REFRESH_DOWN) != 0 || (mFlag & FLAG_IS_REFRESH_UP) != 0;
     }
 
     @Override
@@ -236,7 +236,7 @@ public class PtrLayout extends ViewGroup {
     }
 
     private boolean isNeedIntercept() {
-        return mPtrScroller.isAnimating() || mIsRefreshing;
+        return mPtrScroller.isAnimating();
     }
 
     @Override
@@ -312,7 +312,7 @@ public class PtrLayout extends ViewGroup {
                         break;
                 }
 
-                if (!mIsRefreshing) {
+                if (!isRefreshing()) {
                     if (Math.abs(scrollY) < mTotalDragDistance) {
                         mPtrScroller.smoothScroll(scrollY);
                     } else {
@@ -336,7 +336,7 @@ public class PtrLayout extends ViewGroup {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 //fix no body need event
-                if (mNoBodyNeedEvent && !mIsRefreshing) {
+                if (mNoBodyNeedEvent && !isRefreshing()) {
                     switch (mInterceptDirection) {
                         case ViewScrollChecker.DIRECTION_DOWN:
                             if (mHeaderView.offsetY == 0 && mContentView.offsetY == 0) {
@@ -379,7 +379,7 @@ public class PtrLayout extends ViewGroup {
 
         invalidate();
 
-        if (!mIsRefreshing && mHeaderPtrHandler != null) {
+        if (!isRefreshing() && mHeaderPtrHandler != null) {
             float percent = mHeaderView.offsetY * 1f / mTotalDragDistance;
             mHeaderPtrHandler.onPercent(percent);
         }
@@ -395,7 +395,7 @@ public class PtrLayout extends ViewGroup {
 
         invalidate();
 
-        if (!mIsRefreshing && mFooterPtrHandler != null) {
+        if (!isRefreshing() && mFooterPtrHandler != null) {
             float percent = Math.abs(mFooterView.offsetY * 1f) / mTotalDragDistance;
             mFooterPtrHandler.onPercent(percent);
         }
@@ -403,9 +403,9 @@ public class PtrLayout extends ViewGroup {
 
 
     private void performRefresh(int startY) {
-        mIsRefreshing = true;
         switch (mInterceptDirection) {
             case ViewScrollChecker.DIRECTION_DOWN:
+                mFlag |= FLAG_IS_REFRESH_DOWN;
                 if (mHeaderPtrHandler != null) {
                     mHeaderPtrHandler.onRefreshBegin();
                 }
@@ -414,6 +414,7 @@ public class PtrLayout extends ViewGroup {
                 }
                 break;
             case ViewScrollChecker.DIRECTION_UP:
+                mFlag |= FLAG_IS_REFRESH_UP;
                 if (mFooterPtrHandler != null) {
                     mFooterPtrHandler.onRefreshBegin();
                 }
@@ -437,14 +438,15 @@ public class PtrLayout extends ViewGroup {
     }
 
     private void performRefreshComplete(int startY) {
-        mIsRefreshing = false;
         switch (mInterceptDirection) {
             case ViewScrollChecker.DIRECTION_DOWN:
+                mFlag = mFlag & ~FLAG_IS_REFRESH_DOWN;
                 if (mHeaderPtrHandler != null) {
                     mHeaderPtrHandler.onRefreshEnd();
                 }
                 break;
             case ViewScrollChecker.DIRECTION_UP:
+                mFlag = mFlag & ~FLAG_IS_REFRESH_UP;
                 if (mFooterPtrHandler != null) {
                     mFooterPtrHandler.onRefreshEnd();
                 }
