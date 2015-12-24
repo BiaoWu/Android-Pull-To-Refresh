@@ -11,6 +11,8 @@ import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.Scroller;
 
+import com.biao.pulltorefresh.utils.L;
+
 
 /**
  * Created by biaowu.
@@ -20,12 +22,12 @@ public class PtrLayout extends ViewGroup {
     private static final byte DIRECTION_DOWN = -1;
     private static final byte DIRECTION_UP = 1;
     private static final int DEFAULT_PULL_MAX_DISTANCE = 50;//dp
-
     private static final int DEFAULT_RESET_TIME = 500;
-
     private static final float DRAG_RATE = .5f;
-
     private static final int INVALID_POINTER = -1;
+
+    private static final boolean DEBUG_INTERCEPT = false;
+    private static final boolean DEBUG_TOUCH = true;
 
     private float mRatio = 1.3f;
 
@@ -46,13 +48,16 @@ public class PtrLayout extends ViewGroup {
 
     private byte mInterceptDirection;
 
-    //    private int mContentScrollY;
-    private int mHeaderOffsetTop;
-    private int mFooterOffsetTop;
+    private int mContentOffsetY;
+    private int mHeaderOffsetY;
+    private int mFooterOffsetY;
 
 
+    private int mLastScrollY;
     private Scroller mScroller;
 
+    private boolean mOpenDownRefresh;
+    private boolean mOpenUpRefresh;
     private boolean mAnimating;
 
     //swipe
@@ -107,9 +112,14 @@ public class PtrLayout extends ViewGroup {
             mContentView = getChildAt(0);
         } else {
         }
-
-
         mScroller = new Scroller(context);
+
+//        super.setOnTouchListener(new OnTouchListener() {
+//            @Override
+//            public boolean onTouch(View v, MotionEvent event) {
+//                return onTouchEvent(event);
+//            }
+//        });
     }
 
     @Override
@@ -128,7 +138,7 @@ public class PtrLayout extends ViewGroup {
             final int childWidthMeasureSpec = getChildMeasureSpec(widthMeasureSpec,
                     getPaddingLeft() + getPaddingRight() + lp.leftMargin + lp.rightMargin, lp.width);
             final int childHeightMeasureSpec = getChildMeasureSpec(heightMeasureSpec,
-                    getPaddingTop() + getPaddingBottom() + lp.topMargin, heightSize);
+                    getPaddingTop() + getPaddingBottom() + lp.topMargin, lp.height);
 
             mContentView.measure(childWidthMeasureSpec, childHeightMeasureSpec);
         }
@@ -153,7 +163,7 @@ public class PtrLayout extends ViewGroup {
             final int left = paddingLeft + lp.leftMargin;
 //            final int top = mCurrentTargetOffsetTop - headerHeight;
 //            final int top = 0;
-            final int top = -headerHeight + mHeaderOffsetTop;
+            final int top = -headerHeight + mHeaderOffsetY;
             final int right = left + mHeaderView.getMeasuredWidth();
             final int bottom = top + headerHeight;
             mHeaderView.layout(left, top, right, bottom);
@@ -175,7 +185,7 @@ public class PtrLayout extends ViewGroup {
             int headerHeight = mFooterView.getMeasuredHeight();
             MarginLayoutParams lp = (MarginLayoutParams) mFooterView.getLayoutParams();
             final int left = paddingLeft + lp.leftMargin;
-            final int top = cotentViewHeight + mFooterOffsetTop;
+            final int top = cotentViewHeight + mFooterOffsetY;
             final int right = left + mFooterView.getMeasuredWidth();
             final int bottom = top + headerHeight;
             mFooterView.layout(left, top, right, bottom);
@@ -184,29 +194,23 @@ public class PtrLayout extends ViewGroup {
 
     public void setHeaderView(View view) {
         if (view != null && mHeaderView != view) {
+            mOpenDownRefresh = true;
             mHeaderView = view;
             addView(view);
             if (view instanceof PtrHandler) {
                 mHeaderPtrHandler = (PtrHandler) view;
             }
-            reset();
         }
-    }
-
-    private void reset() {
-//        mContentScrollY = 0;
-        mHeaderOffsetTop = 0;
-        mFooterOffsetTop = 0;
     }
 
     public void setFooterView(View view) {
         if (view != null && mFooterView != view) {
+            mOpenUpRefresh = true;
             mFooterView = view;
             addView(view);
             if (view instanceof PtrHandler) {
                 mFooterPtrHandler = (PtrHandler) view;
             }
-            reset();
         }
     }
 
@@ -214,15 +218,17 @@ public class PtrLayout extends ViewGroup {
         return mRefreshing;
     }
 
-    private boolean canScrollVerticallyDown() {
-        return canScrollVertically(DIRECTION_DOWN);
+    private boolean canContentScrollVerticallyDown() {
+        return canContentScrollVertically(DIRECTION_DOWN);
     }
 
-    private boolean canScrollVerticallyUp() {
-        return canScrollVertically(DIRECTION_UP);
+    private boolean canContentScrollVerticallyUp() {
+        return canContentScrollVertically(DIRECTION_UP);
     }
 
-    public boolean canScrollVertically(int direction) {
+    private boolean canContentScrollVertically(int direction) {
+        if (DEBUG_INTERCEPT)
+            L.e("direction is " + (direction > 0 ? "up" : "down"));
         if (Build.VERSION.SDK_INT < 14) {
             if (mContentView instanceof AbsListView) {//list view etc.
                 final AbsListView absListView = (AbsListView) mContentView;
@@ -247,63 +253,91 @@ public class PtrLayout extends ViewGroup {
                 return mContentView.getScrollY() > 0;
             }
         } else {
-            return mContentView.canScrollVertically(direction);
+            boolean canScrollVertically = mContentView.canScrollVertically(direction);
+            if (DEBUG_INTERCEPT)
+                L.e("canViewScrollVertically = " + canScrollVertically);
+            return canScrollVertically;
         }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        return super.dispatchTouchEvent(ev);
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
         if (!isEnabled() || mNestedScrollInProgress) {
-            // Fail fast if we're not in a state where a swipe is possible
+            if (DEBUG_INTERCEPT)
+                L.e("not enabled!");
             return false;
         }
 
         if (mAnimating) {
+            if (DEBUG_INTERCEPT)
+                L.e("Animating!");
             return mIsBeingDragged = true;
         }
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 mIsBeingDragged = false;
+                mInterceptDirection = 0;
                 mLastDownY = mInitialDownY = event.getRawY();
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (mHeaderOffsetTop == 0 && mFooterOffsetTop == 0) {
-                    mDistanceY = event.getRawY() - mLastDownY;
-                    if (Math.abs(mDistanceY) < mTouchSlop) {
-                        return mIsBeingDragged = false;
-                    }
-
-                    //only mIsIntercept=true this direction can use
-                    mInterceptDirection = mDistanceY > 0 ? DIRECTION_DOWN : DIRECTION_UP;
-                    switch (mInterceptDirection) {
-                        case DIRECTION_DOWN:
-                            mIsBeingDragged = !canScrollVerticallyDown();
-                            break;
-                        case DIRECTION_UP:
-                            mIsBeingDragged = !canScrollVerticallyUp();
-                            break;
-                    }
-
-                    mLastDownY = event.getRawY();
-                } else {
-                    mIsBeingDragged = true;
-                    mInterceptDirection = mHeaderOffsetTop > 0 ? DIRECTION_DOWN : DIRECTION_UP;
+                //TODO 优化
+//                if (mHeaderOffsetY == 0 && mFooterOffsetY == 0) {
+                mDistanceY = event.getRawY() - mLastDownY;
+                if (Math.abs(mDistanceY) < mTouchSlop) {
+                    if (DEBUG_INTERCEPT)
+                        L.e("Distance so small!");
+                    return mIsBeingDragged = false;
                 }
+
+                if (DEBUG_INTERCEPT)
+                    L.e("mDistanceY = " + mDistanceY);
+
+                //only mIsIntercept=true this direction can use
+                mInterceptDirection = mDistanceY > 0 ? DIRECTION_DOWN : DIRECTION_UP;
+                switch (mInterceptDirection) {
+                    case DIRECTION_DOWN:
+                        mIsBeingDragged = !canContentScrollVerticallyDown();
+                        break;
+                    case DIRECTION_UP:
+                        mIsBeingDragged = !canContentScrollVerticallyUp();
+                        break;
+                }
+                mLastDownY = event.getRawY();
+//                } else {
+//                    mIsBeingDragged = true;
+//                    mInterceptDirection = mHeaderOffsetY > 0 ? DIRECTION_DOWN : DIRECTION_UP;
+//                }
                 break;
             case MotionEvent.ACTION_UP:
                 break;
         }
+        if (DEBUG_INTERCEPT)
+            L.e("IsBeingDragged = " + mIsBeingDragged);
         return mIsBeingDragged;
     }
 
     @Override
+    public void setOnTouchListener(OnTouchListener l) {
+//        super.setOnTouchListener(l);
+    }
+
+    @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (!isEnabled() || !mIsBeingDragged || mNestedScrollInProgress) {
+        if (!isEnabled() || mNestedScrollInProgress) {
+            if (DEBUG_TOUCH)
+                L.e("is not enable!");
             return false;
         }
 
         if (mAnimating) {
+            if (DEBUG_TOUCH)
+                L.e("Animating");
             return true;
         }
 
@@ -313,40 +347,61 @@ public class PtrLayout extends ViewGroup {
             case MotionEvent.ACTION_MOVE:
                 mDistanceY = event.getRawY() - mLastDownY;
                 mDistanceY *= DRAG_RATE;
-
                 switch (mInterceptDirection) {
                     case DIRECTION_DOWN:
-                        moveDown((int) mDistanceY);
+                        performDown((int) mDistanceY);
                         break;
                     case DIRECTION_UP:
-                        moveUp((int) mDistanceY);
+                        performUp((int) mDistanceY);
+                        break;
+                    default:
+                        performMove((int) mDistanceY);
                         break;
                 }
                 mLastDownY = event.getRawY();
                 break;
             case MotionEvent.ACTION_UP:
                 mIsBeingDragged = false;
-                int scrollY = 0;
+                int scrollY;
+                if (DEBUG_TOUCH)
+                    L.e("mInterceptDirection = " + mInterceptDirection);
                 switch (mInterceptDirection) {
                     case DIRECTION_DOWN:
-                        scrollY = mHeaderOffsetTop;
+                        if (!mOpenDownRefresh) {
+                            smoothScroll(mContentOffsetY);
+                            if (DEBUG_TOUCH)
+                                L.e("Down Refresh not open");
+                            return true;
+                        }
+                        scrollY = mHeaderOffsetY;
                         break;
                     case DIRECTION_UP:
-                        scrollY = mFooterOffsetTop;
+                        if (!mOpenUpRefresh) {
+                            smoothScroll(mContentOffsetY);
+                            if (DEBUG_TOUCH)
+                                L.e("Up Refresh not open");
+                            return true;
+                        }
+                        scrollY = mFooterOffsetY;
                         break;
+                    default:
+                        scrollY = mContentOffsetY;
+                        smoothScroll(scrollY);
+                        return true;
                 }
+
                 if (!mRefreshing) {
                     if (Math.abs(scrollY) < mTotalDragDistance) {
-                        smootchScroll(scrollY);
+                        smoothScroll(scrollY);
                     } else {
-                        startRefresh(scrollY);
+                        performRefresh(scrollY);
                     }
                 } else {
                     if (Math.abs(scrollY) > mTotalDragDistance) {
-                        smootchScroll(scrollY > 0 ? scrollY - mTotalDragDistance
+                        smoothScroll(scrollY > 0 ? scrollY - mTotalDragDistance
                                 : scrollY + mTotalDragDistance);
                     } else {
-                        smootchScroll(scrollY);
+                        smoothScroll(scrollY);
                     }
                 }
                 break;
@@ -354,64 +409,69 @@ public class PtrLayout extends ViewGroup {
         return true;
     }
 
-    private void moveDown(int y) {
-        if (mHeaderOffsetTop + y < 0) {
+    private void performMove(int distanceY) {
+        offsetContent(distanceY);
+
+        invalidate();
+    }
+
+    private void performDown(int distanceY) {
+        if (mHeaderView != null && mHeaderOffsetY + distanceY < 0) {
             return;
         }
 
-        mHeaderOffsetTop += y;
-
-//        dispatch2Content(y);
-        dispatch2Header(y);
+        offsetContent(distanceY);
+        offsetHeader(distanceY);
 
         invalidate();
 
         if (!mRefreshing && mHeaderPtrHandler != null) {
-            float percent = mHeaderOffsetTop * 1f / mTotalDragDistance;
+            float percent = mHeaderOffsetY * 1f / mTotalDragDistance;
             mHeaderPtrHandler.onPercent(percent);
         }
     }
 
-    private void moveUp(int y) {
-        if (mFooterOffsetTop + y > 0) {
+    private void performUp(int distanceY) {
+        if (mFooterView != null && mFooterOffsetY + distanceY > 0) {
             return;
         }
 
-        mFooterOffsetTop += y;
-
-        dispatch2Content(y);
-        dispatch2Footer(y);
+        offsetContent(distanceY);
+        offsetFooter(distanceY);
 
         invalidate();
 
         if (!mRefreshing && mFooterPtrHandler != null) {
-            float percent = Math.abs(mFooterOffsetTop * 1f) / mTotalDragDistance;
+            float percent = Math.abs(mFooterOffsetY * 1f) / mTotalDragDistance;
             mFooterPtrHandler.onPercent(percent);
         }
     }
 
-    private void dispatch2Header(int y) {
+    private void offsetHeader(int distanceY) {
         if (mHeaderView != null) {
-            mHeaderView.offsetTopAndBottom(y);
+            mHeaderView.offsetTopAndBottom(distanceY);
+            mHeaderOffsetY += distanceY;
         }
     }
 
-    private void dispatch2Content(int y) {
+    private void offsetContent(int distanceY) {
         if (mContentView != null) {
-            mContentView.offsetTopAndBottom(y);
+            mContentView.offsetTopAndBottom(distanceY);
+            mContentOffsetY += distanceY;
         }
     }
 
-    private void dispatch2Footer(int y) {
+    private void offsetFooter(int distanceY) {
         if (mFooterView != null) {
-            mFooterView.offsetTopAndBottom(y);
+            mFooterView.offsetTopAndBottom(distanceY);
+            mFooterOffsetY += distanceY;
         }
     }
 
-    private void startRefresh(int startY) {
+    private void performRefresh(int startY) {
         mRefreshing = true;
         int endY = startY > 0 ? startY - mTotalDragDistance : mTotalDragDistance - Math.abs(startY);
-        smootchScroll(endY, DEFAULT_RESET_TIME);
+        smoothScroll(endY, DEFAULT_RESET_TIME);
 
         switch (mInterceptDirection) {
             case DIRECTION_DOWN:
@@ -435,17 +495,17 @@ public class PtrLayout extends ViewGroup {
 
 
     public void onDownRefreshComplete() {
-        performRefreshComplete(mHeaderOffsetTop);
+        performRefreshComplete(mHeaderOffsetY);
     }
 
     public void onUpRefreshComplete() {
-        performRefreshComplete(mFooterOffsetTop);
+        performRefreshComplete(mFooterOffsetY);
     }
 
     private void performRefreshComplete(int startY) {
         mRefreshing = false;
         mAnimating = true;
-        smootchScroll(startY, DEFAULT_RESET_TIME);
+        smoothScroll(startY, DEFAULT_RESET_TIME);
         postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -467,17 +527,14 @@ public class PtrLayout extends ViewGroup {
         }
     }
 
-
-    private int scrollY;
-
-    private void smootchScroll(int startY, int duration) {
-        scrollY = 0;
+    private void smoothScroll(int startY, int duration) {
+        mLastScrollY = 0;
         mScroller.startScroll(0, 0, 0, startY, duration);
         invalidate();
     }
 
-    private void smootchScroll(int startY) {
-        scrollY = 0;
+    private void smoothScroll(int startY) {
+        mLastScrollY = 0;
         mScroller.startScroll(0, 0, 0, startY, DEFAULT_RESET_TIME);
         invalidate();
     }
@@ -488,13 +545,16 @@ public class PtrLayout extends ViewGroup {
             int currY = mScroller.getCurrY();
             switch (mInterceptDirection) {
                 case DIRECTION_DOWN:
-                    moveDown(scrollY - currY);
+                    performDown(mLastScrollY - currY);
                     break;
                 case DIRECTION_UP:
-                    moveUp(scrollY - currY);
+                    performUp(mLastScrollY - currY);
+                    break;
+                default:
+                    performMove(mLastScrollY - currY);
                     break;
             }
-            scrollY = currY;
+            mLastScrollY = currY;
         }
     }
 
