@@ -52,6 +52,7 @@ public class BaseActivity extends AppCompatActivity {
         if (addToBackStack) {
             fragmentTransaction.addToBackStack(null);
         }
+        fragmentTransaction.setCustomAnimations(FragmentTransaction.TRANSIT_FRAGMENT_FADE, FragmentTransaction.TRANSIT_FRAGMENT_FADE);
         fragmentTransaction.commitAllowingStateLoss();
     }
 }

@@ -9,9 +9,11 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import com.biao.pulltorefresh.PtrHandler;
+import com.biao.pulltorefresh.utils.L;
 
 public class MaterialHeader extends View implements PtrHandler {
-
+    private static final String TAG = MaterialHeader.class.getSimpleName();
+    private static final boolean DEBUG = false;
     private MaterialProgressDrawable mDrawable;
     private float mScale;
 
@@ -88,6 +90,8 @@ public class MaterialHeader extends View implements PtrHandler {
 
     @Override
     public void onPercent(float percent) {
+        if (DEBUG)
+            L.e(TAG, "percent=%s", percent);
         mScale = percent;
 
         mDrawable.setAlpha((int) (255 * percent));

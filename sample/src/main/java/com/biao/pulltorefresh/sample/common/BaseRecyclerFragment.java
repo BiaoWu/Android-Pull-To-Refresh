@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -51,5 +52,20 @@ public class BaseRecyclerFragment extends Fragment {
 
     public PtrLayout getPtrLayout() {
         return mPtrLayout;
+    }
+
+    public RecyclerView getRecyclerView() {
+        return mRecyclerView;
+    }
+
+    public void replaceFragment(Fragment fragment) {
+        replaceFragment(fragment, false);
+    }
+
+    public void replaceFragment(Fragment fragment, boolean addToBackStack) {
+        FragmentActivity activity = getActivity();
+        if (activity instanceof BaseActivity) {
+            ((BaseActivity) activity).replaceFragment(fragment, addToBackStack);
+        }
     }
 }
