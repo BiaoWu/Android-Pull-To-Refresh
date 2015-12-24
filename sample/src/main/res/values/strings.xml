@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AndroidPullToRefresh</string>
+    <string name="title_activity_base">BaseActivity</string>
 </resources>
