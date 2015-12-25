@@ -21,7 +21,7 @@ import com.biao.pulltorefresh.utils.ViewScrollChecker;
 public class PtrLayout extends ViewGroup {
     private static final String TAG = PtrLayout.class.getSimpleName();
     private static final boolean DEBUG_INTERCEPT = false;
-    private static final boolean DEBUG_TOUCH = true;
+    private static final boolean DEBUG_TOUCH = false;
 
     private static final int DEFAULT_RELEASE_DISTANCE = 70;//dp
     private static final float DRAG_RATE = .5f;

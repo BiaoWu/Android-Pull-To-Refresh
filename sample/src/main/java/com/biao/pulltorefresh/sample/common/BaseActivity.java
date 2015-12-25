@@ -48,11 +48,11 @@ public class BaseActivity extends AppCompatActivity {
 
     public void replaceFragment(Fragment fragment, boolean addToBackStack) {
         FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
+        fragmentTransaction.setCustomAnimations(R.anim.right_in, R.anim.left_out, R.anim.left_in, R.anim.right_out);
         fragmentTransaction.replace(R.id.fl_container, fragment);
         if (addToBackStack) {
             fragmentTransaction.addToBackStack(null);
         }
-        fragmentTransaction.setCustomAnimations(FragmentTransaction.TRANSIT_FRAGMENT_FADE, FragmentTransaction.TRANSIT_FRAGMENT_FADE);
         fragmentTransaction.commitAllowingStateLoss();
     }
 }
