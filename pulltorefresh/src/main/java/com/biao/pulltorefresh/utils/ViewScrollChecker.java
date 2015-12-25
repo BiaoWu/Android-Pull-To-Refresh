@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.AbsListView;
 
 /**
- * Created by biaowu on 15/12/22.
+ * Created by biaowu.
  */
 public class ViewScrollChecker {
     private static final String TAG = ViewScrollChecker.class.getSimpleName();

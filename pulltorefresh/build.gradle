@@ -1,4 +1,29 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+
+ext {
+    bintrayRepo = 'maven'
+    bintrayName = 'Android-Pull-To-Refresh'
+
+    publishedGroupId = 'com.biao'
+    libraryName = 'pulltorefresh'
+    artifact = 'pulltorefresh'
+
+    libraryDescription = 'Android pull down to refresh and pull up to refresh!'
+
+    siteUrl = 'https://github.com/BiaoWu/Android-Pull-To-Refresh'
+    gitUrl = 'https://github.com/BiaoWu/Android-Pull-To-Refresh.git'
+
+    libraryVersion = '1.0.0-beta1'
+
+    developerId = 'Bill'
+    developerName = 'Bill Wu'
+    developerEmail = 'biaoliu_2007@163.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+}
 
 android {
     compileSdkVersion 23
@@ -8,7 +33,7 @@ android {
         minSdkVersion 8
         targetSdkVersion 23
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
     buildTypes {
         release {
@@ -24,3 +49,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:23.1.1'
     compile 'com.android.support:recyclerview-v7:23.1.1'
 }
+
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'

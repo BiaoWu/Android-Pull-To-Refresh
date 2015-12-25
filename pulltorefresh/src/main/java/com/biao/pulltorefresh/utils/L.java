@@ -4,7 +4,6 @@ import android.util.Log;
 
 /**
  * LogUtil
- * <p/>
  * Created by biaowu.
  */
 public class L {
