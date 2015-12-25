@@ -48,14 +48,14 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
 
         int[] colors = new int[]{Color.RED, Color.GREEN, Color.BLUE};
 
-        final MaterialHeader header = new MaterialHeader(getContext());
-        header.setColorSchemeColors(colors);
-        setHeaderView(header);
+        final MaterialHeader headerView = new MaterialHeader(getContext());
+        headerView.setColorSchemeColors(colors);
+        setHeaderView(headerView);
 
 
-        final MaterialHeader footer = new MaterialHeader(getContext());
-        footer.setColorSchemeColors(colors);
-        setFooterView(footer);
+        final MaterialHeader footerView = new MaterialHeader(getContext());
+        footerView.setColorSchemeColors(colors);
+        setFooterView(footerView);
 
         final PtrLayout ptrLayout = getPtrLayout();
         ptrLayout.setMode(mMode);
@@ -63,7 +63,7 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
         ptrLayout.setOnPullDownRefreshListener(new OnRefreshListener() {
             @Override
             public void onRefresh() {
-                header.postDelayed(new Runnable() {
+                headerView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         CommonLog.e("OnPullDownRefresh");
@@ -77,7 +77,7 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
         ptrLayout.setOnPullUpRefreshListener(new OnRefreshListener() {
             @Override
             public void onRefresh() {
-                header.postDelayed(new Runnable() {
+                headerView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         CommonLog.e("OnPullUpRefresh");
