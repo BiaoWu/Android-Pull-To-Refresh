@@ -123,6 +123,9 @@ public class PtrLayout extends ViewGroup {
                             ? (-mHeaderView.view.getMeasuredHeight() + mHeaderView.offsetY)
                             : 0,
                     0, 0);
+            if (!mContentView.canScroll()) {
+                bringChildToFront(mHeaderView.view);
+            }
         }
 
         if (mContentView.isNotEmpty()) {
@@ -137,6 +140,9 @@ public class PtrLayout extends ViewGroup {
                             ? footerTop + mFooterView.offsetY
                             : footerTop + mFooterView.offsetY - mFooterView.view.getMeasuredHeight(),
                     0, 0);
+            if (!mContentView.canScroll()) {
+                bringChildToFront(mFooterView.view);
+            }
         }
     }
 
@@ -393,21 +399,20 @@ public class PtrLayout extends ViewGroup {
         if (ptrViewHolder == null) {
             return;
         }
+
+        ptrViewHolder.offsetTopAndBottom(distanceY);
         if (ptrViewHolder != mContentView) {
             mContentView.offsetTopAndBottom(distanceY);
+        } else {
+            ptrViewHolder = getInterceptPtrView();
         }
-        ptrViewHolder.offsetTopAndBottom(distanceY);
 
         invalidate();
 
-
-        if (!mIsRefreshing) {
-            ptrViewHolder = getInterceptPtrView();
-            if (ptrViewHolder.ptrHandler != null) {
-                int releaseDist = getReleaseDist(ptrViewHolder.getHeight());
-                float percent = Math.abs(getInterceptOffsetY() * 1f / releaseDist);
-                ptrViewHolder.ptrHandler.onPercent(Math.min(1f, percent));
-            }
+        if (!mIsRefreshing && ptrViewHolder.ptrHandler != null) {
+            int releaseDist = getReleaseDist(ptrViewHolder.getHeight());
+            float percent = Math.abs(getInterceptOffsetY() * 1f / releaseDist);
+            ptrViewHolder.ptrHandler.onPercent(Math.min(1f, percent));
         }
     }
 

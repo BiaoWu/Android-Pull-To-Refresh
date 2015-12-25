@@ -1,19 +1,15 @@
 package com.biao.pulltorefresh.sample.fragment;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 
-import com.biao.pulltorefresh.OnRefreshListener;
 import com.biao.pulltorefresh.PtrLayout;
-import com.biao.pulltorefresh.header.MaterialHeader;
 import com.biao.pulltorefresh.sample.adapter.MainAdapter;
 import com.biao.pulltorefresh.sample.bean.DemoBean;
 import com.biao.pulltorefresh.sample.common.BaseRecyclerFragment;
-import com.biao.pulltorefresh.sample.common.CommonLog;
 import com.biao.pulltorefresh.sample.utils.SpacesItemDecoration;
 
 import java.util.ArrayList;
@@ -29,49 +25,9 @@ public class MainFragment extends BaseRecyclerFragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-
-        int[] colors = new int[]{Color.RED, Color.GREEN, Color.BLUE};
-
-        final MaterialHeader header = new MaterialHeader(getContext());
-        header.setColorSchemeColors(colors);
-        setHeaderView(header);
-
-
-        final MaterialHeader footer = new MaterialHeader(getContext());
-        footer.setColorSchemeColors(colors);
-        setFooterView(footer);
-
-        final PtrLayout ptrLayout = getPtrLayout();
-
-        ptrLayout.setOnPullDownRefreshListener(new OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                header.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        CommonLog.e("OnPullDownRefresh");
-                        ptrLayout.onRefreshComplete();
-                    }
-                }, 3000);
-            }
-        });
-
-
-        ptrLayout.setOnPullUpRefreshListener(new OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                header.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        CommonLog.e("OnPullUpRefresh");
-                        ptrLayout.onRefreshComplete();
-                    }
-                }, 3000);
-            }
-        });
-
         RecyclerView recyclerView = getRecyclerView();
-        recyclerView.addItemDecoration(new SpacesItemDecoration(recyclerView, 32));
+        float density = recyclerView.getContext().getResources().getDisplayMetrics().density;
+        recyclerView.addItemDecoration(new SpacesItemDecoration(recyclerView, Math.round(density * 16)));
 
         initData();
     }
