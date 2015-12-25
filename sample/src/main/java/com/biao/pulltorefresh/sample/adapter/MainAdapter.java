@@ -1,12 +1,12 @@
 package com.biao.pulltorefresh.sample.adapter;
 
-import android.graphics.Color;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.biao.pulltorefresh.sample.R;
 import com.biao.pulltorefresh.sample.bean.DemoBean;
 
 import java.util.ArrayList;
@@ -38,7 +38,8 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
         DemoBean demoBean = data.get(position);
         holder.mTextView.setText(demoBean.content);
         holder.mTextView.setTextSize(12);
-        holder.mTextView.setBackgroundColor(Color.BLUE);
+        int color = holder.mTextView.getContext().getResources().getColor(R.color.colorPrimary);
+        holder.mTextView.setBackgroundColor(color);
         holder.mTextView.setOnClickListener(demoBean.onClickListener);
     }
 

@@ -3,7 +3,6 @@ package com.biao.pulltorefresh.sample.fragment;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
@@ -75,7 +74,6 @@ public class MainFragment extends BaseRecyclerFragment {
         recyclerView.addItemDecoration(new SpacesItemDecoration(recyclerView, 32));
 
         initData();
-        SwipeRefreshLayout swipeRefreshLayout;
     }
 
     private void initData() {
@@ -86,31 +84,31 @@ public class MainFragment extends BaseRecyclerFragment {
                 replaceFragment(new BaseRecyclerFragment(), true);
             }
         }));
-        demoBeans.add(new DemoBean("MODE_ALL_MOVE", "MODE_ALL_MOVE", new View.OnClickListener() {
+        demoBeans.add(new DemoBean("All Move", "All Move", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 replaceFragment(MaterialHeaderFragment.newInstance(PtrLayout.MODE_ALL_MOVE), true);
             }
         }));
-        demoBeans.add(new DemoBean("MODE_ONLY_CONTENT_MOVE", "MODE_ONLY_CONTENT_MOVE", new View.OnClickListener() {
+        demoBeans.add(new DemoBean("Only Content can move", "Only Content can move", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 replaceFragment(MaterialHeaderFragment.newInstance(PtrLayout.MODE_ONLY_CONTENT_MOVE), true);
             }
         }));
-        demoBeans.add(new DemoBean("MODE_ONLY_CONTENT_NOT_MOVE", "MODE_ONLY_CONTENT_NOT_MOVE", new View.OnClickListener() {
+        demoBeans.add(new DemoBean("Only Content cannot move", "Only Content cannot move", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 replaceFragment(MaterialHeaderFragment.newInstance(PtrLayout.MODE_ONLY_CONTENT_NOT_MOVE), true);
             }
         }));
-        demoBeans.add(new DemoBean("MODE_ONLY_HEADER_NOT_MOVE", "MODE_ONLY_HEADER_NOT_MOVE", new View.OnClickListener() {
+        demoBeans.add(new DemoBean("Only header cannot move", "Only header cannot move", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 replaceFragment(MaterialHeaderFragment.newInstance(PtrLayout.MODE_ONLY_HEADER_NOT_MOVE), true);
             }
         }));
-        demoBeans.add(new DemoBean("MODE_ONLY_FOOTER_NOT_MOVE", "MODE_ONLY_FOOTER_NOT_MOVE", new View.OnClickListener() {
+        demoBeans.add(new DemoBean("Only footer cannot move", "Only footer cannot move", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 replaceFragment(MaterialHeaderFragment.newInstance(PtrLayout.MODE_ONLY_FOOTER_NOT_MOVE), true);
@@ -121,7 +119,7 @@ public class MainFragment extends BaseRecyclerFragment {
 
     @Override
     protected RecyclerView.LayoutManager buildLayoutManager(Context context) {
-        return new GridLayoutManager(context, 3);
+        return new GridLayoutManager(context, 2);
     }
 
     @Override

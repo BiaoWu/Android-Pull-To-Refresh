@@ -7,6 +7,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AbsListView;
 
 /**
@@ -56,23 +57,23 @@ public class ViewScrollChecker {
     }
 
     private static boolean performAbsListView(AbsListView view, int direction) {
-        final AbsListView absListView = view;
-        int childCount = absListView.getChildCount();
+        int childCount = view.getChildCount();
         if (childCount > 0) {
             switch (direction) {
                 case DIRECTION_DOWN:
-                    int firstItemTop = absListView.getChildAt(0).getTop();
-                    int listViewTop = absListView.getTop() - absListView.getPaddingTop();
+                    ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+                    int firstItemTop = view.getChildAt(0).getTop();
+                    int listViewTop = view.getTop() + view.getPaddingTop() - lp.topMargin;
                     if (DEBUG_SCROLL_CHECK)
                         L.e(TAG, "firstItemTop=%s,listViewTop=%s", firstItemTop, listViewTop);
-                    return (absListView.getFirstVisiblePosition() > 0
+                    return (view.getFirstVisiblePosition() > 0
                             || firstItemTop < listViewTop);
                 case DIRECTION_UP:
-                    int lastItemBottom = absListView.getChildAt(childCount - 1).getBottom();
-                    int listViewBottom = absListView.getBottom() - absListView.getPaddingBottom();
+                    int lastItemBottom = view.getChildAt(childCount - 1).getBottom();
+                    int listViewBottom = view.getBottom() - view.getPaddingBottom();
                     if (DEBUG_SCROLL_CHECK)
                         L.e(TAG, "lastItemBottom=%s,listViewBottom=%s", lastItemBottom, listViewBottom);
-                    return (absListView.getLastVisiblePosition() < childCount - 1
+                    return (view.getLastVisiblePosition() < childCount - 1
                             || lastItemBottom > listViewBottom);
             }
         }
@@ -105,8 +106,9 @@ public class ViewScrollChecker {
                         L.e(TAG, "firstPosition = %s", firstPosition);
                     }
                     if (firstPosition == 0) {
+                        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
                         int firstItemTop = view.findViewHolderForAdapterPosition(firstPosition).itemView.getTop();
-                        int recyclerViewTop = view.getTop() - view.getPaddingTop();
+                        int recyclerViewTop = view.getTop() + view.getPaddingTop() - lp.topMargin;
                         if (DEBUG_SCROLL_CHECK)
                             L.e(TAG, "firstItemTop=%s,recyclerViewTop=%s", firstItemTop, recyclerViewTop);
                         return firstItemTop < recyclerViewTop;
