@@ -1,5 +1,6 @@
 package com.biao.pulltorefresh.sample.adapter;
 
+import android.graphics.Color;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,6 +30,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.Recycl
     @Override
     public void onBindViewHolder(RecyclerViewHolder holder, int position) {
         holder.mTextView.setText(data.get(position));
+        holder.mTextView.setTextColor(Color.BLACK);
     }
 
     @Override

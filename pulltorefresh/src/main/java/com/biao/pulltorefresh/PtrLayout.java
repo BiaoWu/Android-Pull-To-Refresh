@@ -247,7 +247,8 @@ public class PtrLayout extends ViewGroup {
                 } else {
                     mDistanceY = event.getRawY() - mInitialDownY;
                     if (Math.abs(mDistanceY) > mTouchSlop) {
-                        mLastDownY = mInitialDownY + mTouchSlop;
+                        mLastDownY = mDistanceY > 0 ? mInitialDownY + mTouchSlop
+                                : mInitialDownY - mTouchSlop;
                         mInterceptDirection = mDistanceY > 0
                                 ? ViewScrollChecker.DIRECTION_DOWN
                                 : ViewScrollChecker.DIRECTION_UP;

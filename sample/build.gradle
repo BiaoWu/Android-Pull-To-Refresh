@@ -26,4 +26,5 @@ dependencies {
     compile 'com.android.support:design:23.1.1'
     compile 'com.android.support:recyclerview-v7:23.1.1'
     compile project(':pulltorefresh')
+//    compile 'com.biao:pulltorefresh:1.0.0-beta1'
 }

@@ -24,6 +24,15 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
         return fragment;
     }
 
+    public static MaterialHeaderFragment newInstance(int mode, String title) {
+        MaterialHeaderFragment fragment = new MaterialHeaderFragment();
+        Bundle args = new Bundle();
+        args.putInt(MODE, mode);
+        args.putString(TITLE, title);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

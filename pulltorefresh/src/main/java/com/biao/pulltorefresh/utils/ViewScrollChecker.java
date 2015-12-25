@@ -17,7 +17,7 @@ public class ViewScrollChecker {
     private static final String TAG = ViewScrollChecker.class.getSimpleName();
     public static final byte DIRECTION_DOWN = -1;
     public static final byte DIRECTION_UP = 1;
-    private static final boolean DEBUG_SCROLL_CHECK = false;
+    private static final boolean DEBUG_SCROLL_CHECK = true;
 
     public static boolean isDirectionDown(byte direction) {
         return direction == DIRECTION_DOWN;
