@@ -59,15 +59,34 @@ PtrLayout.MODE_ONLY_HEADER_NOT_MOVE
 PtrLayout.MODE_ONLY_CONTENT_MOVE
 ```
 
-4. set refresh listener.  As the name implies .
+4. set refresh listener and at last you need call onRefreshComplete().  As the name implies .
 
 ```
 public void setOnPullDownRefreshListener(OnRefreshListener onRefreshListener);
 public void setOnPullUpRefreshListener(OnRefreshListener onRefreshListener);
 ```
 
+```
+ptrLayout.setOnPullDownRefreshListener(new OnRefreshListener() {
+    @Override
+    public void onRefresh() {
+        headerView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                ptrLayout.onRefreshComplete();
+            }
+        }, 3000);
+    }
+});
+```
+
 ## Demos
 ### Just only use PtrLayout like a FrameLayout. Only set the step 1 ! yes ! 
 ![image](https://github.com/BiaoWu/Resource/blob/master/PullToRefresh/NoRefreshView.gif)
 
+### Default Mode = PtrLayout.MODE_ALL_MOVE, show as below !
+![image](https://github.com/BiaoWu/Resource/blob/master/PullToRefresh/AllMove.gif)
+
+### Other Modes, show as below !
+![image](https://github.com/BiaoWu/Resource/blob/master/PullToRefresh/others.gif)
 
