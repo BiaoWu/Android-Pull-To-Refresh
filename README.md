@@ -10,10 +10,14 @@ Gradle:
 compile 'com.biao:pulltorefresh:1.0.0-beta2'
 ```
 
+## TODO
+1. add more defult headers
+2. go on optimize
+
 
 ##How to use!
 
-1. Just use PtrLayout like FrameLayout!!
+* Step 1 :	Just use PtrLayout like FrameLayout!!
 
 ```
 <com.biao.pulltorefresh.PtrLayout
@@ -24,7 +28,7 @@ compile 'com.biao:pulltorefresh:1.0.0-beta2'
 ```
 
 
-2. set HeaderView and FooterView
+* Step 2 :	set HeaderView and FooterView
 
 ```
 public void setHeaderView(View view); 
@@ -48,7 +52,7 @@ public interface PtrHandler {
 
 ```
 
-3. set Mode. As the name implies .
+* Step 3 :	set Mode. As the name implies .
 
 ```
 public void setMode(int mode);
@@ -59,7 +63,7 @@ PtrLayout.MODE_ONLY_HEADER_NOT_MOVE
 PtrLayout.MODE_ONLY_CONTENT_MOVE
 ```
 
-4. set refresh listener and at last you need call onRefreshComplete().  As the name implies .
+* Step 4 :	set refresh listener and at last you need call onRefreshComplete().  As the name implies .
 
 ```
 public void setOnPullDownRefreshListener(OnRefreshListener onRefreshListener);
