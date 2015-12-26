@@ -7,7 +7,7 @@
 ## Download
 Gradle:
 ```
-compile 'com.biao:pulltorefresh:1.0.0-beta1'
+compile 'com.biao:pulltorefresh:1.0.0-beta2'
 ```
 
 
