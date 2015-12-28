@@ -462,6 +462,11 @@ public class PtrLayout extends ViewGroup {
         mRefreshDirection = 0;
     }
 
+    /** set the duration when scroll to start or target position */
+    public void setReturnDuration(int duration) {
+        mPtrScroller.mReturnDuration = duration;
+    }
+
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
@@ -479,14 +484,16 @@ public class PtrLayout extends ViewGroup {
     }
 
     private class PtrScroller implements Runnable {
-        private static final int DEFAULT_RESET_TIME = 300;
+        private static final int DEFAULT_RETURN_DURATION = 400;
         //scroller
         private int mLastScrollY;
         private Scroller mScroller;
         private boolean mIsAnimating;
+        private int mReturnDuration;
 
         PtrScroller(Context context) {
             mScroller = new Scroller(context, new DecelerateInterpolator());
+            mReturnDuration = DEFAULT_RETURN_DURATION;
         }
 
         boolean isAnimating() {
@@ -501,7 +508,7 @@ public class PtrLayout extends ViewGroup {
         }
 
         void smoothScroll(int startY) {
-            smoothScroll(startY, DEFAULT_RESET_TIME);
+            smoothScroll(startY, mReturnDuration);
         }
 
 
