@@ -215,6 +215,16 @@ public class PtrLayout extends ViewGroup {
         }
     }
 
+    /** set the Header PtrHandler */
+    public void setHeaderPtrHandler(PtrHandler ptrHandler) {
+        mHeaderView.setPtrHandler(ptrHandler);
+    }
+
+    /** set the Footer PtrHandler */
+    public void setFootererPtrHandler(PtrHandler ptrHandler) {
+        mFooterView.setPtrHandler(ptrHandler);
+    }
+
     private int getReleaseDist(int dist) {
         return Math.max(mDefaultReleaseDist, dist);
     }
