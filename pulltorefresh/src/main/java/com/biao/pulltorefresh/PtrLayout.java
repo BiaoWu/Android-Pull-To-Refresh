@@ -129,7 +129,9 @@ public class PtrLayout extends ViewGroup {
         }
 
         if (mContentView.isNotEmpty()) {
-            layoutChild(mContentView.view, 0, 0, 0, 0);
+            layoutChild(mContentView.view, 0,
+                    mContentView.canScroll() ? mContentView.offsetY : 0
+                    , 0, 0);
         }
 
         if (mFooterView.isNotEmpty()) {
