@@ -197,6 +197,14 @@ public class PtrLayout extends ViewGroup {
             L.e("view is null!!!");
             return;
         }
+
+        ViewGroup.LayoutParams lp = view.getLayoutParams();
+        if (lp == null) {
+            lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            view.setLayoutParams(lp);
+        }
+
         View originalView = ptrViewHolder.getView();
         if (originalView != null) {
             removeView(originalView);
