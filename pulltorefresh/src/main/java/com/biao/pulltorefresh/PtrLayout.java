@@ -254,6 +254,7 @@ public class PtrLayout extends ViewGroup {
             case MotionEvent.ACTION_MOVE:
                 if (mContentView.canScrollAndIsNotOriginalLocation()) {
                     mIsBeingDragged = true;
+                    mLastDownY = mInitialDownY;
                 } else {
                     mDistanceY = event.getRawY() - mInitialDownY;
                     if (Math.abs(mDistanceY) > mTouchSlop) {
