@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">AndroidPullToRefresh</string>
     <string name="title_activity_base">BaseActivity</string>
+
+    <string name="release_to_refresh">释放刷新！</string>
+    <string name="pull_down_to_refresh">下拉刷新！</string>
+    <string name="pull_up_to_refresh">上拉刷新！</string>
+    <string name="refresh_start">正在刷新！</string>
+    <string name="refresh_end">刷新完成</string>
 </resources>

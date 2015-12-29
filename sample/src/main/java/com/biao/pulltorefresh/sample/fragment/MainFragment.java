@@ -77,6 +77,12 @@ public class MainFragment extends BaseRecyclerFragment {
                 replaceFragment(MaterialHeaderFragment.newInstance(PtrLayout.MODE_ONLY_FOOTER_NOT_MOVE, "Only footer cannot move"), true);
             }
         }));
+        demoBeans.add(new DemoBean("Default Refresh View", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                replaceFragment(DefaultRefreshViewFragment.newInstance(PtrLayout.MODE_ALL_MOVE, "Default Refresh View"), true);
+            }
+        }));
         mMainAdapter.addAll(demoBeans);
     }
 
