@@ -11,23 +11,23 @@ import android.view.View;
 import com.biao.pulltorefresh.PtrHandler;
 import com.biao.pulltorefresh.utils.L;
 
-public class MaterialHeader extends View implements PtrHandler {
-    private static final String TAG = MaterialHeader.class.getSimpleName();
+public class MaterialRefreshView extends View implements PtrHandler {
+    private static final String TAG = MaterialRefreshView.class.getSimpleName();
     private static final boolean DEBUG = false;
     private MaterialProgressDrawable mDrawable;
     private float mScale;
 
-    public MaterialHeader(Context context) {
+    public MaterialRefreshView(Context context) {
         super(context);
         initView();
     }
 
-    public MaterialHeader(Context context, AttributeSet attrs) {
+    public MaterialRefreshView(Context context, AttributeSet attrs) {
         super(context, attrs);
         initView();
     }
 
-    public MaterialHeader(Context context, AttributeSet attrs, int defStyleAttr) {
+    public MaterialRefreshView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         initView();
     }

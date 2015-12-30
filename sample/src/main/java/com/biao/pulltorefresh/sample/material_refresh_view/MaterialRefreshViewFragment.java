@@ -1,18 +1,13 @@
-package com.biao.pulltorefresh.sample.fragment;
+package com.biao.pulltorefresh.sample.material_refresh_view;
 
-import android.content.Context;
 import android.os.Bundle;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
 
 import com.biao.pulltorefresh.PtrLayout;
-import com.biao.pulltorefresh.sample.R;
-import com.biao.pulltorefresh.sample.adapter.MainAdapter;
 import com.biao.pulltorefresh.sample.bean.DemoBean;
-import com.biao.pulltorefresh.sample.common.BaseRecyclerFragment;
-import com.biao.pulltorefresh.sample.utils.SpacesItemDecoration;
+import com.biao.pulltorefresh.sample.common.BaseListFragment;
+import com.biao.pulltorefresh.sample.default_refresh_view.DefaultRefreshViewFragment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,33 +15,19 @@ import java.util.List;
 /**
  * Created by biaowu.
  */
-public class MainFragment extends BaseRecyclerFragment {
-
-    private MainAdapter mMainAdapter;
-
+public class MaterialRefreshViewFragment extends BaseListFragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        Context context = getContext();
         Toolbar toolbar = getToolbar();
-        toolbar.setTitle(context.getString(R.string.app_name));
-
-        RecyclerView recyclerView = getRecyclerView();
-        float density = context.getResources().getDisplayMetrics().density;
-        recyclerView.addItemDecoration(new SpacesItemDecoration(recyclerView, Math.round(density * 16)));
+        toolbar.setTitle("MaterialRefreshView Different Mode");
 
         initData();
     }
 
     private void initData() {
         List<DemoBean> demoBeans = new ArrayList<>();
-        demoBeans.add(new DemoBean("None Refresh View", new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                replaceFragment(BaseRecyclerFragment.newInstance("None Refresh View"), true);
-            }
-        }));
         demoBeans.add(new DemoBean("All Move", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -83,16 +64,6 @@ public class MainFragment extends BaseRecyclerFragment {
                 replaceFragment(DefaultRefreshViewFragment.newInstance(PtrLayout.MODE_ALL_MOVE, "Default Refresh View"), true);
             }
         }));
-        mMainAdapter.addAll(demoBeans);
-    }
-
-    @Override
-    protected RecyclerView.LayoutManager buildLayoutManager(Context context) {
-        return new GridLayoutManager(context, 2);
-    }
-
-    @Override
-    protected RecyclerView.Adapter buildAdapter(Context context) {
-        return mMainAdapter = new MainAdapter();
+        mAdapter.addAll(demoBeans);
     }
 }

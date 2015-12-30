@@ -16,6 +16,8 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <activity android:name=".material_refresh_view.MaterialRefreshViewActivity"/>
     </application>
 
 </manifest>

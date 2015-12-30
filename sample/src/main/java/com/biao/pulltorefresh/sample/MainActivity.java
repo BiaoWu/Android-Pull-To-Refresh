@@ -3,7 +3,6 @@ package com.biao.pulltorefresh.sample;
 import android.os.Bundle;
 
 import com.biao.pulltorefresh.sample.common.BaseActivity;
-import com.biao.pulltorefresh.sample.fragment.MainFragment;
 
 public class MainActivity extends BaseActivity {
 

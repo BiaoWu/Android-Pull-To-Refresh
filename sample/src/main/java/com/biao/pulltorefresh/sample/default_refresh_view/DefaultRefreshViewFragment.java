@@ -1,4 +1,4 @@
-package com.biao.pulltorefresh.sample.fragment;
+package com.biao.pulltorefresh.sample.default_refresh_view;
 
 import android.content.Context;
 import android.graphics.Color;

@@ -1,11 +1,11 @@
-package com.biao.pulltorefresh.sample.fragment;
+package com.biao.pulltorefresh.sample.material_refresh_view;
 
 import android.graphics.Color;
 import android.os.Bundle;
 
 import com.biao.pulltorefresh.OnRefreshListener;
 import com.biao.pulltorefresh.PtrLayout;
-import com.biao.pulltorefresh.header.MaterialHeader;
+import com.biao.pulltorefresh.header.MaterialRefreshView;
 import com.biao.pulltorefresh.sample.common.BaseRecyclerFragment;
 import com.biao.pulltorefresh.sample.common.CommonLog;
 
@@ -48,12 +48,12 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
 
         int[] colors = new int[]{Color.RED, Color.GREEN, Color.BLUE};
 
-        final MaterialHeader headerView = new MaterialHeader(getContext());
+        final MaterialRefreshView headerView = new MaterialRefreshView(getContext());
         headerView.setColorSchemeColors(colors);
         setHeaderView(headerView);
 
 
-        final MaterialHeader footerView = new MaterialHeader(getContext());
+        final MaterialRefreshView footerView = new MaterialRefreshView(getContext());
         footerView.setColorSchemeColors(colors);
         setFooterView(footerView);
 
