@@ -117,14 +117,18 @@ public class PtrLayout extends ViewGroup {
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         if (mHeaderView.isNotEmpty()) {
+            int headerHeight = mHeaderView.view.getMeasuredHeight();
             layoutChild(mHeaderView.view,
                     0,
                     mHeaderView.canScroll()
-                            ? (-mHeaderView.view.getMeasuredHeight() + mHeaderView.offsetY)
+                            ? (-headerHeight + mHeaderView.offsetY)
                             : 0,
                     0, 0);
             if (!mContentView.canScroll()) {
                 bringChildToFront(mHeaderView.view);
+            }
+            if (mHeaderView.releaseDist == 0) {
+                mHeaderView.releaseDist = headerHeight;
             }
         }
 
@@ -135,15 +139,19 @@ public class PtrLayout extends ViewGroup {
         }
 
         if (mFooterView.isNotEmpty()) {
+            int footerHeight = mFooterView.view.getMeasuredHeight();
             int footerTop = getMeasuredHeight() - getPaddingTop() - getPaddingBottom();
             layoutChild(mFooterView.view,
                     0,
                     mFooterView.canScroll()
                             ? footerTop + mFooterView.offsetY
-                            : footerTop + mFooterView.offsetY - mFooterView.view.getMeasuredHeight(),
+                            : footerTop + mFooterView.offsetY - footerHeight,
                     0, 0);
             if (!mContentView.canScroll()) {
                 bringChildToFront(mFooterView.view);
+            }
+            if (mFooterView.releaseDist == 0) {
+                mFooterView.releaseDist = footerHeight;
             }
         }
     }
@@ -235,8 +243,25 @@ public class PtrLayout extends ViewGroup {
         mFooterView.setPtrHandler(ptrHandler);
     }
 
-    private int getReleaseDist(int dist) {
-        return Math.max(mDefaultReleaseDist, dist);
+    /** set the Header Release Dist */
+    public void setHeaderReleaseDist(int dist) {
+        if (dist < 0) {
+            return;
+        }
+        mHeaderView.releaseDist = dist;
+    }
+
+    /** set the Footer Release Dist */
+    public void setFooterReleaseDist(int dist) {
+        if (dist < 0) {
+            return;
+        }
+        mFooterView.releaseDist = dist;
+    }
+
+    private int getReleaseDist(PtrViewHolder ptrViewHolder) {
+        return ptrViewHolder != null && ptrViewHolder.releaseDist > 0
+                ? ptrViewHolder.releaseDist : mDefaultReleaseDist;
     }
 
     public boolean isRefreshing() {
@@ -340,7 +365,7 @@ public class PtrLayout extends ViewGroup {
                 }
 
                 ptrViewHolder = getInterceptPtrView();
-                final int releaseDist = getReleaseDist(ptrViewHolder.getHeight());
+                final int releaseDist = getReleaseDist(ptrViewHolder);
                 if (!mIsRefreshing) {
                     int scrollY = getInterceptOffsetY();
                     if (DEBUG_TOUCH)
@@ -432,7 +457,7 @@ public class PtrLayout extends ViewGroup {
         invalidate();
 
         if (!mIsRefreshing && ptrViewHolder.ptrHandler != null) {
-            int releaseDist = getReleaseDist(ptrViewHolder.getHeight());
+            int releaseDist = getReleaseDist(ptrViewHolder);
             float percent = Math.abs(getInterceptOffsetY() * 1f / releaseDist);
             ptrViewHolder.ptrHandler.onPercent(Math.min(1f, percent));
         }
@@ -456,7 +481,7 @@ public class PtrLayout extends ViewGroup {
         if (ptrViewHolder.mOnRefreshListener != null) {
             ptrViewHolder.mOnRefreshListener.onRefresh();
         }
-        int releaseDist = getReleaseDist(ptrViewHolder.getHeight());
+        int releaseDist = getReleaseDist(ptrViewHolder);
         int endY = offsetY > 0 ? offsetY - releaseDist
                 : releaseDist - Math.abs(offsetY);
         mPtrScroller.smoothScroll(endY);

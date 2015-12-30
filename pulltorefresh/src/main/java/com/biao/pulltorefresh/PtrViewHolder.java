@@ -15,6 +15,7 @@ class PtrViewHolder {
     View view;
     int flag;
     int offsetY;
+    int releaseDist;
     PtrHandler ptrHandler;
     OnRefreshListener mOnRefreshListener;
 
