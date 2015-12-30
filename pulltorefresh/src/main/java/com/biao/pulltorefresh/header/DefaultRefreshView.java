@@ -17,7 +17,7 @@ import com.biao.pulltorefresh.utils.L;
 
 public class DefaultRefreshView extends FrameLayout implements PtrHandler {
     private static final String TAG = DefaultRefreshView.class.getSimpleName();
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private TextView mTextView;
     private MaterialProgressDrawable mDrawable;
