@@ -14,7 +14,7 @@ ext {
     siteUrl = 'https://github.com/BiaoWu/Android-Pull-To-Refresh'
     gitUrl = 'https://github.com/BiaoWu/Android-Pull-To-Refresh.git'
 
-    libraryVersion = '1.0.0-beta2'
+    libraryVersion = '1.0.0-beta3'
 
     developerId = 'Bill'
     developerName = 'Bill Wu'

@@ -7,11 +7,11 @@
 ## Download
 Gradle:
 ```
-compile 'com.biao:pulltorefresh:1.0.0-beta2'
+compile 'com.biao:pulltorefresh:1.0.0-beta3'
 ```
 
 ## TODO
-1. add more default headers
+1. add more default refresh view
 2. go on optimize
 
 
