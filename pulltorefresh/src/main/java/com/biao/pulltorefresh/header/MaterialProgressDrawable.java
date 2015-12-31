@@ -29,18 +29,13 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.IntDef;
-import android.support.annotation.NonNull;
-import android.support.v4.view.animation.FastOutSlowInInterpolator;
 import android.util.DisplayMetrics;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Animation;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.Transformation;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 
 /**
@@ -50,12 +45,10 @@ import java.util.ArrayList;
  */
 class MaterialProgressDrawable extends Drawable implements Animatable {
     private static final Interpolator LINEAR_INTERPOLATOR = new LinearInterpolator();
-    private static final Interpolator MATERIAL_INTERPOLATOR = new FastOutSlowInInterpolator();
+    private static final Interpolator END_CURVE_INTERPOLATOR = new EndCurveInterpolator();
+    private static final Interpolator START_CURVE_INTERPOLATOR = new StartCurveInterpolator();
+    private static final Interpolator EASE_INTERPOLATOR = new AccelerateDecelerateInterpolator();
 
-    private static final float FULL_ROTATION = 1080.0f;
-    @Retention(RetentionPolicy.CLASS)
-    @IntDef({LARGE, DEFAULT})
-    public @interface ProgressDrawableSize {}
     // Maps to ProgressBar.Large style
     static final int LARGE = 0;
     // Maps to ProgressBar default style
@@ -72,19 +65,11 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
     private static final float STROKE_WIDTH_LARGE = 3f;
 
     private final int[] COLORS = new int[] {
-            Color.BLACK
+            Color.rgb(0xF6, 0x93, 0x0D)
     };
 
-    /**
-     * The value in the linear interpolator for animating the drawable at which
-     * the color transition should start
-     */
-    private static final float COLOR_START_DELAY_OFFSET = 0.75f;
-    private static final float END_TRIM_START_DELAY_OFFSET = 0.5f;
-    private static final float START_TRIM_DURATION_OFFSET = 0.5f;
-
     /** The duration of a single progress spin in milliseconds. */
-    private static final int ANIMATION_DURATION = 1332;
+    private static final int ANIMATION_DURATION = 1000 * 80 / 60;
 
     /** The number of points in the progress "star". */
     private static final float NUM_POINTS = 5f;
@@ -113,7 +98,7 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
     private float mRotationCount;
     private double mWidth;
     private double mHeight;
-    boolean mFinishing;
+    private Animation mFinishAnimation;
 
     public MaterialProgressDrawable(Context context, View parent) {
         mParent = parent;
@@ -141,14 +126,7 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
         ring.setInsets((int) mWidth, (int) mHeight);
     }
 
-    /**
-     * Set the overall size for the progress spinner. This updates the radius
-     * and stroke width of the ring.
-     *
-     * @param size One of {@link MaterialProgressDrawable.LARGE} or
-     *            {@link MaterialProgressDrawable.DEFAULT}
-     */
-    public void updateSizes(@ProgressDrawableSize int size) {
+    public void updateSizes(int size) {
         if (size == LARGE) {
             setSizeParameters(CIRCLE_DIAMETER_LARGE, CIRCLE_DIAMETER_LARGE, CENTER_RADIUS_LARGE,
                     STROKE_WIDTH_LARGE, ARROW_WIDTH_LARGE, ARROW_HEIGHT_LARGE);
@@ -279,13 +257,10 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
         mRing.storeOriginals();
         // Already showing some part of the ring
         if (mRing.getEndTrim() != mRing.getStartTrim()) {
-            mFinishing = true;
-            mAnimation.setDuration(ANIMATION_DURATION/2);
-            mParent.startAnimation(mAnimation);
+            mParent.startAnimation(mFinishAnimation);
         } else {
             mRing.setColorIndex(0);
             mRing.resetOriginals();
-            mAnimation.setDuration(ANIMATION_DURATION);
             mParent.startAnimation(mAnimation);
         }
     }
@@ -299,122 +274,78 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
         mRing.resetOriginals();
     }
 
-    private float getMinProgressArc(Ring ring) {
-        return (float) Math.toRadians(
-                ring.getStrokeWidth() / (2 * Math.PI * ring.getCenterRadius()));
-    }
-
-    // Adapted from ArgbEvaluator.java
-    private int evaluateColorChange(float fraction, int startValue, int endValue) {
-        int startInt = (Integer) startValue;
-        int startA = (startInt >> 24) & 0xff;
-        int startR = (startInt >> 16) & 0xff;
-        int startG = (startInt >> 8) & 0xff;
-        int startB = startInt & 0xff;
-
-        int endInt = (Integer) endValue;
-        int endA = (endInt >> 24) & 0xff;
-        int endR = (endInt >> 16) & 0xff;
-        int endG = (endInt >> 8) & 0xff;
-        int endB = endInt & 0xff;
-
-        return (int)((startA + (int)(fraction * (endA - startA))) << 24) |
-                (int)((startR + (int)(fraction * (endR - startR))) << 16) |
-                (int)((startG + (int)(fraction * (endG - startG))) << 8) |
-                (int)((startB + (int)(fraction * (endB - startB))));
-    }
-
-    /**
-     * Update the ring color if this is within the last 25% of the animation.
-     * The new ring color will be a translation from the starting ring color to
-     * the next color.
-     */
-    private void updateRingColor(float interpolatedTime, Ring ring) {
-        if (interpolatedTime > COLOR_START_DELAY_OFFSET) {
-            // scale the interpolatedTime so that the full
-            // transformation from 0 - 1 takes place in the
-            // remaining time
-            ring.setColor(evaluateColorChange((interpolatedTime - COLOR_START_DELAY_OFFSET)
-                            / (1.0f - COLOR_START_DELAY_OFFSET), ring.getStartingColor(),
-                    ring.getNextColor()));
-        }
-    }
-
-    private void applyFinishTranslation(float interpolatedTime, Ring ring) {
-        // shrink back down and complete a full rotation before
-        // starting other circles
-        // Rotation goes between [0..1].
-        updateRingColor(interpolatedTime, ring);
-        float targetRotation = (float) (Math.floor(ring.getStartingRotation() / MAX_PROGRESS_ARC)
-                + 1f);
-        final float minProgressArc = getMinProgressArc(ring);
-        final float startTrim = ring.getStartingStartTrim()
-                + (ring.getStartingEndTrim() - minProgressArc - ring.getStartingStartTrim())
-                * interpolatedTime;
-        ring.setStartTrim(startTrim);
-        ring.setEndTrim(ring.getStartingEndTrim());
-        final float rotation = ring.getStartingRotation()
-                + ((targetRotation - ring.getStartingRotation()) * interpolatedTime);
-        ring.setRotation(rotation);
-    }
-
     private void setupAnimators() {
         final Ring ring = mRing;
+        final Animation finishRingAnimation = new Animation() {
+            public void applyTransformation(float interpolatedTime, Transformation t) {
+                // shrink back down and complete a full rotation before starting other circles
+                // Rotation goes between [0..1].
+                float targetRotation = (float) (Math.floor(ring.getStartingRotation()
+                        / MAX_PROGRESS_ARC) + 1f);
+                final float startTrim = ring.getStartingStartTrim()
+                        + (ring.getStartingEndTrim() - ring.getStartingStartTrim())
+                        * interpolatedTime;
+                ring.setStartTrim(startTrim);
+                final float rotation = ring.getStartingRotation()
+                        + ((targetRotation - ring.getStartingRotation()) * interpolatedTime);
+                ring.setRotation(rotation);
+                ring.setArrowScale(1 - interpolatedTime);
+            }
+        };
+        finishRingAnimation.setInterpolator(EASE_INTERPOLATOR);
+        finishRingAnimation.setDuration(ANIMATION_DURATION/2);
+        finishRingAnimation.setAnimationListener(new Animation.AnimationListener() {
+
+            @Override
+            public void onAnimationStart(Animation animation) {
+            }
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                ring.goToNextColor();
+                ring.storeOriginals();
+                ring.setShowArrow(false);
+                mParent.startAnimation(mAnimation);
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {
+            }
+        });
         final Animation animation = new Animation() {
             @Override
             public void applyTransformation(float interpolatedTime, Transformation t) {
-                if (mFinishing) {
-                    applyFinishTranslation(interpolatedTime, ring);
-                } else {
-                    // The minProgressArc is calculated from 0 to create an
-                    // angle that matches the stroke width.
-                    final float minProgressArc = getMinProgressArc(ring);
-                    final float startingEndTrim = ring.getStartingEndTrim();
-                    final float startingTrim = ring.getStartingStartTrim();
-                    final float startingRotation = ring.getStartingRotation();
+                // The minProgressArc is calculated from 0 to create an angle that
+                // matches the stroke width.
+                final float minProgressArc = (float) Math.toRadians(ring.getStrokeWidth()
+                        / (2 * Math.PI * ring.getCenterRadius()));
+                final float startingEndTrim = ring.getStartingEndTrim();
+                final float startingTrim = ring.getStartingStartTrim();
+                final float startingRotation = ring.getStartingRotation();
 
-                    updateRingColor(interpolatedTime, ring);
+                // Offset the minProgressArc to where the endTrim is located.
+                final float minArc = MAX_PROGRESS_ARC - minProgressArc;
+                final float endTrim = startingEndTrim
+                        + (minArc * START_CURVE_INTERPOLATOR.getInterpolation(interpolatedTime));
+                ring.setEndTrim(endTrim);
 
-                    // Moving the start trim only occurs in the first 50% of a
-                    // single ring animation
-                    if (interpolatedTime <= START_TRIM_DURATION_OFFSET) {
-                        // scale the interpolatedTime so that the full
-                        // transformation from 0 - 1 takes place in the
-                        // remaining time
-                        final float scaledTime = (interpolatedTime)
-                                / (1.0f - START_TRIM_DURATION_OFFSET);
-                        final float startTrim = startingTrim
-                                + ((MAX_PROGRESS_ARC - minProgressArc) * MATERIAL_INTERPOLATOR
-                                .getInterpolation(scaledTime));
-                        ring.setStartTrim(startTrim);
-                    }
+                final float startTrim = startingTrim
+                        + (MAX_PROGRESS_ARC * END_CURVE_INTERPOLATOR
+                        .getInterpolation(interpolatedTime));
+                ring.setStartTrim(startTrim);
 
-                    // Moving the end trim starts after 50% of a single ring
-                    // animation completes
-                    if (interpolatedTime > END_TRIM_START_DELAY_OFFSET) {
-                        // scale the interpolatedTime so that the full
-                        // transformation from 0 - 1 takes place in the
-                        // remaining time
-                        final float minArc = MAX_PROGRESS_ARC - minProgressArc;
-                        float scaledTime = (interpolatedTime - START_TRIM_DURATION_OFFSET)
-                                / (1.0f - START_TRIM_DURATION_OFFSET);
-                        final float endTrim = startingEndTrim
-                                + (minArc * MATERIAL_INTERPOLATOR.getInterpolation(scaledTime));
-                        ring.setEndTrim(endTrim);
-                    }
+                final float rotation = startingRotation + (0.25f * interpolatedTime);
+                ring.setRotation(rotation);
 
-                    final float rotation = startingRotation + (0.25f * interpolatedTime);
-                    ring.setRotation(rotation);
-
-                    float groupRotation = ((FULL_ROTATION / NUM_POINTS) * interpolatedTime)
-                            + (FULL_ROTATION * (mRotationCount / NUM_POINTS));
-                    setRotation(groupRotation);
-                }
+                float groupRotation = ((720.0f / NUM_POINTS) * interpolatedTime)
+                        + (720.0f * (mRotationCount / NUM_POINTS));
+                setRotation(groupRotation);
             }
         };
         animation.setRepeatCount(Animation.INFINITE);
         animation.setRepeatMode(Animation.RESTART);
         animation.setInterpolator(LINEAR_INTERPOLATOR);
+        animation.setDuration(ANIMATION_DURATION);
         animation.setAnimationListener(new Animation.AnimationListener() {
 
             @Override
@@ -432,17 +363,10 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
                 ring.storeOriginals();
                 ring.goToNextColor();
                 ring.setStartTrim(ring.getEndTrim());
-                if (mFinishing) {
-                    // finished closing the last ring from the swipe gesture; go
-                    // into progress mode
-                    mFinishing = false;
-                    animation.setDuration(ANIMATION_DURATION);
-                    ring.setShowArrow(false);
-                } else {
-                    mRotationCount = (mRotationCount + 1) % (NUM_POINTS);
-                }
+                mRotationCount = (mRotationCount + 1) % (NUM_POINTS);
             }
         });
+        mFinishAnimation = finishRingAnimation;
         mAnimation = animation;
     }
 
@@ -491,9 +415,8 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
         private int mArrowWidth;
         private int mArrowHeight;
         private int mAlpha;
-        private final Paint mCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint mCirclePaint = new Paint();
         private int mBackgroundColor;
-        private int mCurrentColor;
 
         public Ring(Callback callback) {
             mCallback = callback;
@@ -533,7 +456,7 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
             final float endAngle = (mEndTrim + mRotation) * 360;
             float sweepAngle = endAngle - startAngle;
 
-            mPaint.setColor(mCurrentColor);
+            mPaint.setColor(mColors[mColorIndex]);
             c.drawArc(arcBounds, startAngle, sweepAngle, false, mPaint);
 
             drawTriangle(c, startAngle, sweepAngle, bounds);
@@ -572,7 +495,7 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
                 mArrow.offset(x - inset, y);
                 mArrow.close();
                 // draw a triangle
-                mArrowPaint.setColor(mCurrentColor);
+                mArrowPaint.setColor(mColors[mColorIndex]);
                 c.rotate(startAngle + sweepAngle - ARROW_OFFSET_ANGLE, bounds.exactCenterX(),
                         bounds.exactCenterY());
                 c.drawPath(mArrow, mArrowPaint);
@@ -584,21 +507,10 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
          *
          * @param colors Array of integers describing the colors. Must be non-<code>null</code>.
          */
-        public void setColors(@NonNull int[] colors) {
+        public void setColors(int[] colors) {
             mColors = colors;
             // if colors are reset, make sure to reset the color index as well
             setColorIndex(0);
-        }
-
-        /**
-         * Set the absolute color of the progress spinner. This is should only
-         * be used when animating between current and next color when the
-         * spinner is rotating.
-         *
-         * @param color int describing the color.
-         */
-        public void setColor(int color) {
-            mCurrentColor = color;
         }
 
         /**
@@ -607,18 +519,6 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
          */
         public void setColorIndex(int index) {
             mColorIndex = index;
-            mCurrentColor = mColors[mColorIndex];
-        }
-
-        /**
-         * @return int describing the next color the progress spinner should use when drawing.
-         */
-        public int getNextColor() {
-            return mColors[getNextColorIndex()];
-        }
-
-        private int getNextColorIndex() {
-            return (mColorIndex + 1) % (mColors.length);
         }
 
         /**
@@ -626,7 +526,7 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
          * wrap back to the beginning of colors.
          */
         public void goToNextColor() {
-            setColorIndex(getNextColorIndex());
+            mColorIndex = (mColorIndex + 1) % (mColors.length);
         }
 
         public void setColorFilter(ColorFilter filter) {
@@ -679,10 +579,6 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
 
         public float getStartingEndTrim() {
             return mStartingEndTrim;
-        }
-
-        public int getStartingColor() {
-            return mColors[mColorIndex];
         }
 
         @SuppressWarnings("unused")
@@ -786,6 +682,26 @@ class MaterialProgressDrawable extends Drawable implements Animatable {
 
         private void invalidateSelf() {
             mCallback.invalidateDrawable(null);
+        }
+    }
+
+    /**
+     * Squishes the interpolation curve into the second half of the animation.
+     */
+    private static class EndCurveInterpolator extends AccelerateDecelerateInterpolator {
+        @Override
+        public float getInterpolation(float input) {
+            return super.getInterpolation(Math.max(0, (input - 0.5f) * 2.0f));
+        }
+    }
+
+    /**
+     * Squishes the interpolation curve into the first half of the animation.
+     */
+    private static class StartCurveInterpolator extends AccelerateDecelerateInterpolator {
+        @Override
+        public float getInterpolation(float input) {
+            return super.getInterpolation(Math.min(1, input * 2.0f));
         }
     }
 }
