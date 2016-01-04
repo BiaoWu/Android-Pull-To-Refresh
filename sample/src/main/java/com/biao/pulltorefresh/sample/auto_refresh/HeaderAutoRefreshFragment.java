@@ -1,4 +1,4 @@
-package com.biao.pulltorefresh.sample.default_refresh_view;
+package com.biao.pulltorefresh.sample.auto_refresh;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -13,20 +13,20 @@ import com.biao.pulltorefresh.sample.common.CommonLog;
 /**
  * Created by biaowu.
  */
-public class DefaultRefreshViewFragment extends BaseRecyclerFragment {
+public class HeaderAutoRefreshFragment extends BaseRecyclerFragment {
     private static final String MODE = "mode";
     private int mMode;
 
-    public static DefaultRefreshViewFragment newInstance(int mode) {
-        DefaultRefreshViewFragment fragment = new DefaultRefreshViewFragment();
+    public static HeaderAutoRefreshFragment newInstance(int mode) {
+        HeaderAutoRefreshFragment fragment = new HeaderAutoRefreshFragment();
         Bundle args = new Bundle();
         args.putInt(MODE, mode);
         fragment.setArguments(args);
         return fragment;
     }
 
-    public static DefaultRefreshViewFragment newInstance(int mode, String title) {
-        DefaultRefreshViewFragment fragment = new DefaultRefreshViewFragment();
+    public static HeaderAutoRefreshFragment newInstance(int mode, String title) {
+        HeaderAutoRefreshFragment fragment = new HeaderAutoRefreshFragment();
         Bundle args = new Bundle();
         args.putInt(MODE, mode);
         args.putString(TITLE, title);
@@ -91,5 +91,12 @@ public class DefaultRefreshViewFragment extends BaseRecyclerFragment {
                 }, 3000);
             }
         });
+
+        headerView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                ptrLayout.autoRefresh();
+            }
+        }, 1000);
     }
 }

@@ -15,10 +15,6 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.Recycl
 
     public RecyclerAdapter() {
         data = new ArrayList<>();
-
-        for (int i = 0; i < 20; i++) {
-            data.add("text" + i);
-        }
     }
 
     @Override
@@ -31,6 +27,17 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.Recycl
     public void onBindViewHolder(RecyclerViewHolder holder, int position) {
         holder.mTextView.setText(data.get(position));
         holder.mTextView.setTextColor(Color.BLACK);
+    }
+
+    public void addAll(List<String> list) {
+        int start = getItemCount();
+        data.addAll(list);
+        notifyItemRangeChanged(start, getItemCount());
+    }
+
+    public void replaceAll(List<String> list) {
+        data.clear();
+        addAll(list);
     }
 
     @Override

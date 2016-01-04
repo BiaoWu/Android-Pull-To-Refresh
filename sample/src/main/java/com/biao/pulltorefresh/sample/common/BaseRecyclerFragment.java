@@ -13,6 +13,9 @@ import com.biao.pulltorefresh.PtrLayout;
 import com.biao.pulltorefresh.sample.R;
 import com.biao.pulltorefresh.sample.adapter.RecyclerAdapter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by biaowu.
  */
@@ -20,6 +23,7 @@ public class BaseRecyclerFragment extends BaseFragment {
 
     private PtrLayout mPtrLayout;
     private RecyclerView mRecyclerView;
+    private RecyclerAdapter mAdapter;
 
     public static BaseRecyclerFragment newInstance(String title) {
         BaseRecyclerFragment fragment = new BaseRecyclerFragment();
@@ -41,11 +45,29 @@ public class BaseRecyclerFragment extends BaseFragment {
     }
 
     protected RecyclerView.Adapter buildAdapter(Context context) {
-        return new RecyclerAdapter();
+        mAdapter = new RecyclerAdapter();
+        return mAdapter;
     }
 
     protected RecyclerView.LayoutManager buildLayoutManager(Context context) {
         return new LinearLayoutManager(context);
+    }
+
+    protected void load() {
+        List<String> data = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            data.add("text" + i);
+        }
+        mAdapter.replaceAll(data);
+    }
+
+    protected void loadMore() {
+        int count = mAdapter.getItemCount();
+        List<String> data = new ArrayList<>();
+        for (int i = count; i < count + 20; i++) {
+            data.add("text" + i);
+        }
+        mAdapter.addAll(data);
     }
 
     protected void setHeaderView(View view) {

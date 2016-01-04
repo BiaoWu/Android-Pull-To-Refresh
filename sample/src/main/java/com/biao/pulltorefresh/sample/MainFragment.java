@@ -7,6 +7,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.View;
 
 import com.biao.pulltorefresh.PtrLayout;
+import com.biao.pulltorefresh.sample.auto_refresh.HeaderAutoRefreshFragment;
 import com.biao.pulltorefresh.sample.bean.DemoBean;
 import com.biao.pulltorefresh.sample.common.BaseListFragment;
 import com.biao.pulltorefresh.sample.common.BaseRecyclerFragment;
@@ -49,6 +50,12 @@ public class MainFragment extends BaseListFragment {
             @Override
             public void onClick(View v) {
                 replaceFragment(DefaultRefreshViewFragment.newInstance(PtrLayout.MODE_ALL_MOVE, "Default Refresh View"), true);
+            }
+        }));
+        demoBeans.add(new DemoBean("Header Auto Refresh", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                replaceFragment(HeaderAutoRefreshFragment.newInstance(PtrLayout.MODE_ALL_MOVE, "Header Auto Refresh"), true);
             }
         }));
         mAdapter.addAll(demoBeans);

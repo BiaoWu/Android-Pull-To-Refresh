@@ -66,6 +66,7 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
                 headerView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
+                        load();
                         CommonLog.e("OnPullDownRefresh");
                         ptrLayout.onRefreshComplete();
                     }
@@ -80,6 +81,7 @@ public class MaterialHeaderFragment extends BaseRecyclerFragment {
                 headerView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
+                        loadMore();
                         CommonLog.e("OnPullUpRefresh");
                         ptrLayout.onRefreshComplete();
                     }
