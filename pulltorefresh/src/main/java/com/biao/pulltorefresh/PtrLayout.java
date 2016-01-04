@@ -463,6 +463,21 @@ public class PtrLayout extends ViewGroup {
         }
     }
 
+    /** autoRefresh */
+    public void autoRefresh() {
+        mInterceptDirection = mRefreshDirection = ViewScrollChecker.DIRECTION_DOWN;
+        int releaseDist = getReleaseDist(getRefreshPtrView());
+        int duration = PtrScroller.DEFAULT_DURATION;
+        mPtrScroller.smoothScroll(-releaseDist, duration);
+
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                performRefresh();
+            }
+        }, duration);
+    }
+
     private void performRefresh() {
         mRefreshDirection = mInterceptDirection;
         PtrViewHolder ptrViewHolder = getRefreshPtrView();
